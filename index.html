@@ -94,6 +94,20 @@ input,select,textarea{font-family:inherit}
 .assign-divider{font-size:10.5px;color:var(--muted);text-align:center;margin:8px 0 4px;letter-spacing:.2px}
 .perm-notice{display:flex;align-items:center;gap:9px;background:#fef5e7;border:1px solid #f5d9a8;color:#9a6a14;padding:11px 16px;border-radius:9px;font-size:12.5px;margin-bottom:14px;line-height:1.5}
 .perm-notice b{font-weight:800}
+/* 모바일: 점검 항목 표를 세로 카드형으로 (글자 쪼개짐 방지) */
+@media(max-width:680px){
+  .step-table thead{display:none}
+  .step-table,.step-table tbody,.step-table tr,.step-table td{display:block;width:100%}
+  .step-table tr{border:1px solid var(--line-2);border-radius:10px;margin-bottom:11px;padding:6px 4px;background:#fff}
+  .step-table td{border:none!important;padding:9px 14px;text-align:left}
+  .step-table td[data-label="기준/확인사항"]::before,
+  .step-table td[data-label="입력 / 처리기록"]::before{
+    content:attr(data-label);display:block;font-size:10.5px;font-weight:700;color:#a8b0c0;margin-bottom:4px;letter-spacing:.3px}
+  .step-table td[data-label="기준/확인사항"]{border-top:1px dashed var(--line)!important;padding-top:10px}
+  .step-table .erp-inp,.step-table .erp-sel{width:100%;max-width:100%!important;box-sizing:border-box}
+  .step-table .ci-name{font-size:14px;word-break:keep-all}
+  .step-table .ci-sub{word-break:keep-all}
+}
 /* 조회 전용 배너 */
 #viewBanner{display:flex;align-items:center;gap:9px;background:linear-gradient(90deg,#fff4e0,#fef8ee);border-bottom:1px solid #f0d9a8;color:#9a6a14;padding:9px 18px;font-size:12px}
 #viewBanner b{font-weight:800}
@@ -784,6 +798,11 @@ const EMP_DB=[
 const DEVICE_KEY='ets_logistics_device_user';   // 폴백용 (시트 안 될 때)
 const DEVICE_ID_KEY='ets_logistics_device_id';  // 이 기기 고유 ID
 
+// 이 기기가 PC인지 모바일인지 감지
+function getDeviceType(){
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)?'mobile':'pc';
+}
+
 // 이 기기의 고유 ID 얻기 (없으면 생성해서 localStorage에 보관)
 //  → PC·모바일이 각각 다른 ID를 가져서 따로 등록됨
 function getDeviceId(){
@@ -849,9 +868,18 @@ async function doDeviceAuth(){
     return;
   }
 
+  // 시트에 기기 등록 (PC 1 + 모바일 1 제한, 초과 시 거부)
+  let bindResult=null;
+  try{
+    bindResult=await callBackend({action:'deviceBind',deviceId:getDeviceId(),devType:getDeviceType(),name:u.name,rank:u.rank,dept:u.dept,empNo:u.empNo});
+  }catch(e){}
+  // 등록 거부됨 (이미 다른 기기가 등록됨)
+  if(bindResult&&bindResult.ok===false&&bindResult.locked){
+    msg.className='lgmsg err';
+    msg.textContent=bindResult.message||'이미 등록된 기기가 있습니다. 관리자에게 기기 해제를 요청하세요.';
+    return; // 진입 차단
+  }
   saveDeviceUser(u);
-  // 시트에 기기 등록 (deviceId로 PC·모바일 각각 등록)
-  try{ await callBackend({action:'deviceBind',deviceId:getDeviceId(),name:u.name,rank:u.rank,dept:u.dept,empNo:u.empNo}); }catch(e){}
   msg.className='lgmsg ok';
   msg.textContent=`본인 확인 완료 — ${u.name} ${u.rank} (${u.dept})\n이 기기에 고정되었습니다.`;
   setTimeout(()=>enterApp(u,true),900);
@@ -1312,7 +1340,7 @@ function renderProjectPage(){
     <div class="panel">
       <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>점검 항목 입력</div>
         <span class="sn-dept ${deptClass(s.dept)}" style="font-size:11px;padding:4px 11px">${assignLabel(p,s)}</span></div>
-      <div class="table-scroll"><table class="erp">
+      <div class="table-scroll"><table class="erp step-table">
         <thead><tr><th style="width:42%">점검 항목</th><th style="width:25%">기준/확인사항</th><th style="width:33%">입력 / 처리기록</th></tr></thead>
         <tbody>${s.fields.map((f,fi)=>renderField(s,f,fi,canEdit)).join('')}</tbody>
       </table></div>
@@ -1347,7 +1375,7 @@ function renderField(s,f,fi,canEdit){
   if(f.type!=='check'){record=f.done?`<div style="margin-top:6px"><span class="rec ok">${f.by||'—'} <span class="dt">${f.date||''}</span></span></div>`:'';}
   let adminDel='';
   if(isAdmin&&f.done){adminDel=`<button class="adm-del" onclick="adminClearField(${s.id},${fi})" title="관리자 삭제(초기화)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>`;}
-  return `<tr><td>${input}</td><td><span style="font-size:11.5px;color:#8a93a5">${f.crit}</span></td><td><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${cell}${adminDel}</div>${record}</td></tr>`;
+  return `<tr><td data-label="점검 항목">${input}</td><td data-label="기준/확인사항"><span style="font-size:11.5px;color:#8a93a5">${f.crit}</span></td><td data-label="입력 / 처리기록"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${cell}${adminDel}</div>${record}</td></tr>`;
 }
 
 // 관리자가 완료된 단계의 항목을 되돌렸을 때, 단계 상태를 항목에 맞춰 재계산
@@ -1514,14 +1542,15 @@ async function renderDevices(){
   const el=document.getElementById('deviceBody');
   if(devices.length===0){el.innerHTML='<div class="empty"><div class="empty-t">등록된 기기가 없습니다</div><div class="empty-s">직원이 본인 인증으로 로그인하면 여기에 표시됩니다</div></div>';return;}
   const myId=getDeviceId();
-  el.innerHTML=`<div class="table-scroll"><table class="erp"><thead><tr><th>이름</th><th>직급</th><th>부서</th><th>등록일시</th><th style="width:110px">관리</th></tr></thead>
+  el.innerHTML=`<div class="table-scroll"><table class="erp"><thead><tr><th>이름</th><th>기기</th><th>직급</th><th>부서</th><th>등록일시</th><th style="width:90px">관리</th></tr></thead>
     <tbody>${devices.map(d=>{
       const isMe=String(d.deviceId)===String(myId);
       const when=d.boundAt?new Date(d.boundAt).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
-      return `<tr><td><b>${d.name}</b>${isMe?' <span style="font-size:10px;color:#2563c9;font-weight:700">(이 기기)</span>':''}</td><td>${d.rank||'—'}</td><td>${d.dept||'—'}</td><td class="mono" style="font-size:11.5px;color:#6b817c">${when}</td>
+      const typeLabel=d.devType==='mobile'?'📱 모바일':'💻 PC';
+      return `<tr><td><b>${d.name}</b>${isMe?' <span style="font-size:10px;color:#2563c9;font-weight:700">(이 기기)</span>':''}</td><td style="font-size:12px">${typeLabel}</td><td>${d.rank||'—'}</td><td>${d.dept||'—'}</td><td class="mono" style="font-size:11.5px;color:#6b817c">${when}</td>
         <td><button class="adm-del" onclick="unbindDeviceRemote('${d.deviceId}','${d.name}')" title="기기 고정 해제"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg> 해제</button></td></tr>`;
     }).join('')}</tbody></table></div>
-    <div style="padding:12px 16px;font-size:11.5px;color:#94a6a1;border-top:1px solid var(--line);line-height:1.6">· <b>해제</b>하면 그 기기는 다음 접속 시 다시 본인 인증이 필요합니다.<br>· 한 사람이 PC·모바일을 각각 등록할 수 있으며, 기기별로 따로 표시됩니다.</div>`;
+    <div style="padding:12px 16px;font-size:11.5px;color:#94a6a1;border-top:1px solid var(--line);line-height:1.6">· 한 사람당 <b>PC 1대 + 모바일 1대</b>까지 등록됩니다. 기기를 바꾸려면 기존 기기를 <b>해제</b>해야 새 기기 등록이 가능합니다.<br>· <b>해제</b>하면 그 기기는 다음 접속 시 다시 본인 인증이 필요합니다.</div>`;
 }
 
 async function unbindDeviceRemote(deviceId,name){
