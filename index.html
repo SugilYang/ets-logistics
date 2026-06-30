@@ -915,14 +915,13 @@ async function loadDataIntoApp(){
   const cloud=await loadProjectsFromSheet();
   if(cloud&&cloud.length>0){
     projects=cloud;
-    // seq를 최대 id+1로
     seq=Math.max(...projects.map(p=>p.id||0))+1;
   }else if(cloud&&cloud.length===0){
-    // 시트는 연결됐는데 비어있음 → 샘플 시드 후 시트에 저장
-    seedSampleData();
-    if(!isViewMode)projects.forEach(p=>saveProjectToSheet(p));
+    // 시트 연결됨 + 비어있음 → 빈 목록으로 시작 (자동 샘플 없음)
+    projects=[];
+    seq=1;
   }else{
-    // 시트 연결 실패 → 로컬 샘플만 (폴백)
+    // 시트 연결 실패(외부망 차단 등) → 폴백 샘플 (로컬 테스트용, 저장 안 함)
     if(projects.length===0)seedSampleData();
   }
 }
@@ -1250,7 +1249,7 @@ function _chartDonut(dist){
 
 // ── 차트: 부서별 막대 (세로) ──
 function _chartDeptBar(load){
-  const depts=['영업','생기','품질','물류','물류팀장'];
+  const depts=['영업','생산관리','품질','물류'];
   const max=Math.max(...depts.map(d=>load[d]||0),1);
   let bars=depts.map(d=>{
     const v=load[d]||0;const h=Math.round(v/max*100);
@@ -1273,7 +1272,7 @@ function _chartFreight(data){
   return html;
 }
 
-function _deptColor(d){return {'영업':'#2563c9','생기':'#0d8a7a','품질':'#0d8a7a','물류':'#e08a1e','물류팀장':'#b05cff'}[d]||'#6b817c';}
+function _deptColor(d){return {'영업':'#2563c9','생산관리':'#0d8a7a','품질':'#b05cff','물류':'#e08a1e'}[d]||'#6b817c';}
 
 // ===== 시트 저장/로딩 =====
 let saveQueue=Promise.resolve(); // 순차 저장 (충돌 방지)
