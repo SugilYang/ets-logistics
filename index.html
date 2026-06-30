@@ -552,7 +552,7 @@ table.erp tbody tr:hover{background:#fafcff}
 <div id="modal">
   <div class="modal-box">
     <div class="modal-h">
-      <div class="modal-h-t">
+      <div class="modal-h-t" id="modalTitle">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7fb4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         신규 프로젝트 생성
       </div>
@@ -561,7 +561,7 @@ table.erp tbody tr:hover{background:#fafcff}
       </button>
     </div>
     <div class="modal-b" id="modalBody"></div>
-    <div class="modal-f">
+    <div class="modal-f" id="modalFoot">
       <button class="btn btn-gho" onclick="closeModal()">취소</button>
       <button class="btn btn-pri" onclick="createProject()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1341,7 +1341,7 @@ function renderProjectPage(){
   page.innerHTML=`
     <div class="phead">
       <div class="phead-l"><h1>STEP ${pad(s.id)}. ${s.name}</h1><div class="sub">${p.name} · ${assignLabel(p,s)} 담당 · 점검 항목 ${s.fields.length}건</div></div>
-      <div class="phead-r"><span class="sbadge ${s.status}"><span class="d"></span>${stText(s.status)}</span></div>
+      <div class="phead-r">${isAdmin?`<button class="btn btn-gho" onclick="openAssignEdit()" style="margin-right:8px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>담당 변경</button>`:''}<span class="sbadge ${s.status}"><span class="d"></span>${stText(s.status)}</span></div>
     </div>
     ${blocked?`<div class="perm-notice"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>이 단계의 담당자(<b>${assignLabel(p,s)}</b>)만 입력할 수 있습니다. 현재 <b>${userLabel(currentUser)}</b>님은 조회만 가능합니다.</span></div>`:''}
     <div class="panel">
@@ -1455,9 +1455,15 @@ function completeStep(sid){
     p.history.unshift({stage:`STEP ${pad(s.id)} ${s.name} 완료`,meta:`담당 ${userLabel(currentUser)} · ${s.dept}`,time:today(),done:true});
     if(nx){
       nx.status='active';selectedStep=nx.id;
-      const assignTxt=assign?(assign.type==='dept'?assign.name+' 부서 전체':assign.name):nx.dept;
-      p.history.unshift({stage:`STEP ${pad(nx.id)} ${nx.name} 시작`,meta:`담당 ${assignTxt} · 그룹웨어 알림 발송`,time:today(),done:false});
-      sendStepNotification(p,s,nx,assign);
+      const assignTxt=assign?(assign.type==='dept'?assign.name+' 부서 전체':assign.persons?assign.persons.map(x=>x.name).join(', '):assign.name):nx.dept;
+      // 부서가 바뀔 때만 알림 발송 (같은 부서 내 단계 이동은 메일 안 보냄)
+      const deptChanged=s.dept!==nx.dept;
+      if(deptChanged){
+        p.history.unshift({stage:`STEP ${pad(nx.id)} ${nx.name} 시작`,meta:`담당 ${assignTxt} · 그룹웨어 알림 발송`,time:today(),done:false});
+        sendStepNotification(p,s,nx,assign);
+      }else{
+        p.history.unshift({stage:`STEP ${pad(nx.id)} ${nx.name} 시작`,meta:`담당 ${assignTxt} · 동일 부서 연속 단계 (알림 생략)`,time:today(),done:false});
+      }
     }else{toast('전체 프로세스 완료');}
     saveProjectToSheet(p);
     refresh();
@@ -1635,6 +1641,9 @@ function renderHistoryPage(){
 // ===== 모달 (프로젝트 생성) =====
 function openModal(){
   if(viewGuard())return;
+  // 제목·푸터 원복 (담당 변경 모달로 바뀌었을 수 있음)
+  document.getElementById('modalTitle').innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7fb4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 신규 프로젝트 생성`;
+  document.getElementById('modalFoot').innerHTML=`<button class="btn btn-gho" onclick="closeModal()">취소</button><button class="btn btn-pri" onclick="createProject()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>프로젝트 생성</button>`;
   document.getElementById('modalBody').innerHTML=`
     <div class="fgrid">
       <div class="fcell full"><div class="flabel">프로젝트명 <span class="req">*</span></div><div class="fval"><input id="npName" placeholder="예: 펜딩 건 부품 발송"></div></div>
@@ -1659,6 +1668,50 @@ function openModal(){
 
 // 단계 담당 지정 상태 { 부서: {type:'dept'|'persons', name, persons:[{name,rank,empNo}]} }
 let assignState={};
+// ── 관리자: 진행 중 프로젝트의 담당 변경 ──
+async function openAssignEdit(){
+  if(!isAdmin){toast('관리자만 담당을 변경할 수 있습니다');return;}
+  const p=curProj();if(!p)return;
+  document.getElementById('modalTitle').innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7fb4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> 단계 담당 변경`;
+  document.getElementById('modalBody').innerHTML=`
+    <div style="padding:11px 14px;background:#eef3fc;border:1px solid #cfe0f7;border-radius:8px;font-size:12px;color:#1d4ed8;line-height:1.6;margin-bottom:14px">
+      <b>${p.name}</b> (${p.po})<br>부서별 담당을 변경하면 해당 부서가 맡은 모든 단계에 적용됩니다.
+    </div>
+    <div class="assign-sec" style="border-top:none;padding-top:0"><div id="assignList"></div></div>`;
+  document.getElementById('modalFoot').innerHTML=`
+    <button class="btn btn-gho" onclick="closeModal()">취소</button>
+    <button class="btn btn-pri" onclick="saveAssignEdit()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>변경 저장</button>`;
+  document.getElementById('modal').classList.add('show');
+  await renderAssignList();
+  restoreAssignFromProject(p);
+}
+function restoreAssignFromProject(p){
+  if(!p.stepAssign)return;
+  PROC_DEPTS.forEach(dep=>{
+    const t=STEP_TEMPLATE.find(x=>x.dept===dep);
+    if(!t)return;
+    const a=p.stepAssign[t.id];
+    if(!a||a.type!=='persons'||!a.persons||!a.persons.length)return;
+    const allBox=document.getElementById('asall-'+dep);
+    if(allBox)allBox.checked=false;
+    a.persons.forEach(per=>{
+      const cb=document.querySelector(`.asperson-${dep}[data-name="${per.name}"]`);
+      if(cb)cb.checked=true;
+    });
+    togglePerson(dep);
+  });
+}
+function saveAssignEdit(){
+  const p=curProj();if(!p)return;
+  STEP_TEMPLATE.forEach(t=>{
+    if(assignState[t.dept])p.stepAssign[t.id]=JSON.parse(JSON.stringify(assignState[t.dept]));
+  });
+  saveProjectToSheet(p);
+  closeModal();
+  toast('단계 담당이 변경되었습니다');
+  renderProjectPage();
+}
+
 async function renderAssignList(){
   const el=document.getElementById('assignList');
   if(!el)return;
