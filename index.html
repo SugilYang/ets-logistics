@@ -383,10 +383,16 @@ table.erp tbody tr:hover{background:#fafcff}
 }
 .side-toggle{display:none;align-items:center;gap:6px;padding:7px 13px;background:#fff;border:1.5px solid var(--line-2);border-radius:7px;font-size:12px;font-weight:700;color:var(--ink-2)}
 @media(max-width:720px){
-  .topbar{padding:0 12px}.tb-title{font-size:12px}.tb-ver{display:none}
-  .tb-user b{max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom}
-  .menubar{overflow-x:auto;padding:0 6px}.mtab{padding:0 12px;white-space:nowrap}
-  .tb-logout span{display:none}
+  .topbar{padding:0 10px;height:50px}.tb-title{font-size:12px}.tb-ver{display:none}
+  .tb-brand{flex-shrink:1;min-width:0}
+  .tb-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+  .tb-right{flex-shrink:0;gap:6px}
+  .tb-user{padding:4px 9px;font-size:11px;white-space:nowrap}
+  .tb-dept{display:none}
+  .tb-user b{max-width:46px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom}
+  .tb-admin,.tb-exit{font-size:10.5px;padding:5px 9px;white-space:nowrap}
+  .menubar{overflow-x:auto;padding:0 6px;-webkit-overflow-scrolling:touch}.mtab{padding:0 12px;white-space:nowrap;flex-shrink:0}
+  .tb-logout span,.tb-unbind span{display:none}
   .page{padding:14px}
   .stats{grid-template-columns:1fr 1fr}
 }
@@ -485,13 +491,13 @@ table.erp tbody tr:hover{background:#fafcff}
 
   <!-- 메뉴 탭 -->
   <div class="menubar">
-    <button class="mtab on" data-tab="list" onclick="switchTab('list')">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-      프로젝트 목록
-    </button>
-    <button class="mtab" data-tab="dashboard" onclick="switchTab('dashboard')">
+    <button class="mtab on" data-tab="dashboard" onclick="switchTab('dashboard')">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
       현황 대시보드
+    </button>
+    <button class="mtab" data-tab="list" onclick="switchTab('list')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      프로젝트 목록
     </button>
     <button class="mtab" data-tab="project" onclick="switchTab('project')">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -794,6 +800,10 @@ const EMP_DB=[
   {name:"최보람",phone4:"2468",rank:"부장",dept:"물류"},
 ];
 
+// 슈퍼유저(개발자) — 부서 상관없이 모든 단계 입력 가능
+const SUPER_USERS=['2024020101'];  // 양수길 사번
+function isSuperUser(u){return u&&u.empNo&&SUPER_USERS.includes(String(u.empNo));}
+
 // 기기 고정 키
 const DEVICE_KEY='ets_logistics_device_user';   // 폴백용 (시트 안 될 때)
 const DEVICE_ID_KEY='ets_logistics_device_id';  // 이 기기 고유 ID
@@ -891,9 +901,9 @@ function enterApp(u,firstBind){
   document.getElementById('login').classList.add('hide');
   showTransition('해외물류 관리시스템', firstBind?`${u.name} ${u.rank}님, 환영합니다`:`${u.name} ${u.rank}님으로 자동 로그인`,async()=>{
     document.getElementById('app').classList.add('show');
-    document.getElementById('tbUser').innerHTML=`<span class="dot"></span><b>${userLabel(u)}</b> · ${u.dept}팀`;
+    document.getElementById('tbUser').innerHTML=`<span class="dot"></span><b>${userLabel(u)}</b><span class="tb-dept"> · ${u.dept}${isSuperUser(u)?' · 개발자':''}</span>`;
     await loadDataIntoApp();
-    switchTab('list');
+    switchTab('dashboard');
   });
 }
 
@@ -930,7 +940,7 @@ function enterViewMode(){
     document.getElementById('tbUser').innerHTML=`<span class="dot" style="background:#e0a020"></span>조회 전용`;
     document.getElementById('tbExit').style.display='flex';
     await loadDataIntoApp();
-    switchTab('list');
+    switchTab('dashboard');
   });
 }
 function exitViewMode(){
@@ -1070,12 +1080,6 @@ function renderList(){
     <div class="phead">
       <div class="phead-l"><h1>프로젝트 목록</h1><div class="sub">해외 발송 프로젝트 전체 관리 · 총 ${total}건</div></div>
       <div class="phead-r"><button class="btn btn-pri" onclick="openModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>신규 프로젝트</button></div>
-    </div>
-    <div class="stats">
-      <div class="stat"><div class="stat-top"><span class="stat-label">전체</span><div class="stat-ic" style="background:#eef3fc"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563c9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div></div><div class="stat-val">${total}</div><div class="stat-sub">건</div></div>
-      <div class="stat"><div class="stat-top"><span class="stat-label">진행중</span><div class="stat-ic" style="background:#fdf3e2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e08a1e" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div></div><div class="stat-val" style="color:#e08a1e">${ing}</div><div class="stat-sub">건</div></div>
-      <div class="stat"><div class="stat-top"><span class="stat-label">완료</span><div class="stat-ic" style="background:#e6f7ee"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0d9c5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div></div><div class="stat-val" style="color:#0d9c5f">${done}</div><div class="stat-sub">건</div></div>
-      <div class="stat"><div class="stat-top"><span class="stat-label">납기 임박</span><div class="stat-ic" style="background:#fbecea"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d6443a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div></div><div class="stat-val" style="color:#d6443a">${urgent}</div><div class="stat-sub">7일 이내</div></div>
     </div>
     <div class="panel">
       <div class="list-toolbar">
@@ -1297,6 +1301,7 @@ async function loadProjectsFromSheet(){
 // 규칙: 관리자=항상 / 부서전체 지정=그 부서원 / 개인 지정=그 사람만
 function canEditStep(p,s){
   if(isAdmin)return true;          // 관리자 예외
+  if(isSuperUser(currentUser))return true; // 슈퍼유저(개발자) 예외 — 모든 단계 가능
   if(isViewMode)return false;      // 조회 모드 차단
   if(s.status!=='active')return false; // 활성 단계만
   const assign=p.stepAssign&&p.stepAssign[s.id];
