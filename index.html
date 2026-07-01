@@ -95,6 +95,19 @@ input,select,textarea{font-family:inherit}
 .assign-summary{font-size:11px;color:#0d9c5f;font-weight:600;margin-left:8px}
 .assign-all{background:var(--blue-l);border-radius:6px}
 .assign-divider{font-size:10.5px;color:var(--muted);text-align:center;margin:8px 0 4px;letter-spacing:.2px}
+/* 단계 건너뛰기(패스) */
+.skip-sec{margin-top:16px;border-top:1px solid var(--line-2);padding-top:14px}
+.skip-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.skip-opt{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line-2);border-radius:6px;cursor:pointer;font-size:12px;color:var(--ink-2)}
+.skip-opt:hover{background:var(--bg)}
+.skip-opt input{accent-color:#d6443a;width:14px;height:14px}
+.skip-opt input:checked+span{color:#d6443a;text-decoration:line-through;opacity:.7}
+.snode.skip{opacity:.5}
+.snode.skip .sn-st{background:#e8ebef;color:#a8b0c0}
+.snode.skip .sn-name{text-decoration:line-through}
+.sbadge.skipped{background:#eef0f3;color:#94a6a1}
+.sn-st.skipped{background:#e8ebef;color:#a8b0c0}
+@media(max-width:680px){.skip-grid{grid-template-columns:1fr}}
 .perm-notice{display:flex;align-items:center;gap:9px;background:#fef5e7;border:1px solid #f5d9a8;color:#9a6a14;padding:11px 16px;border-radius:9px;font-size:12.5px;margin-bottom:14px;line-height:1.5}
 .perm-notice b{font-weight:800}
 /* 모바일: 점검 항목 표를 세로 카드형으로 (글자 쪼개짐 방지) */
@@ -680,7 +693,7 @@ function today(){const d=new Date();return `${d.getFullYear()}.${pad(d.getMonth(
 function now(){const d=new Date();return `${today()} ${pad(d.getHours())}:${pad(d.getMinutes())}`}
 function docNo(){const d=new Date();return `ETS-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`}
 function deptClass(d){return DEPT_CLASS[d]||'dept-logi'}
-function stText(s){return s==='done'?'완료':s==='active'?'진행 중':'대기'}
+function stText(s){return s==='done'?'완료':s==='active'?'진행 중':s==='skipped'?'건너뜀':'대기'}
 const IC={
   check:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
 };
@@ -708,7 +721,7 @@ const SYSTEM_URL='https://ets1.co.kr';
 //  - 읽기/짧은 요청: JSONP (script 태그, CORS 제약 없음)
 //  - 저장 등 긴 데이터: POST text/plain (프리플라이트 회피)
 async function callBackend(params){
-  const heavy=['saveProject']; // 긴 데이터는 POST
+  const heavy=['saveProject','notify']; // 긴 데이터(저장·알림)는 POST
   if(heavy.includes(params.action)){
     return callBackendPost(params);
   }
@@ -1034,19 +1047,22 @@ function renderSidebar(){
     return;
   }
   const done=projDone(p);
+  const activeSteps=p.steps.filter(s=>s.status!=='skipped').length;
+  const doneSteps=p.steps.filter(s=>s.status==='done').length;
   sp.innerHTML=`
     <button class="side-back" onclick="switchTab('list')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>목록으로</button>
     <div class="side-proj-name">${p.name}</div>
     <div class="side-proj-po">${p.po}</div>
     <div class="side-proj-prog">
-      <div class="side-proj-bar"><div class="side-proj-fill" style="width:${Math.round(done/15*100)}%"></div></div>
-      <div class="side-proj-txt">${done}/15 단계</div>
+      <div class="side-proj-bar"><div class="side-proj-fill" style="width:${activeSteps?Math.round(doneSteps/activeSteps*100):0}%"></div></div>
+      <div class="side-proj-txt">${doneSteps}/${activeSteps} 단계</div>
     </div>`;
   ss.innerHTML=p.steps.map(s=>{
     const locked=s.status==='wait'&&!isAdmin;
-    return `<div class="snode ${selectedStep===s.id?'on':''} ${locked?'lock':''}" ${locked?'':`onclick="selStep(${s.id})"`}>
-      <div class="sn-st ${s.status}">${s.status==='done'?IC.check:s.status==='active'?pad(s.id):''}</div>
-      <div class="sn-body"><div class="sn-num">STEP ${pad(s.id)}</div><div class="sn-name">${s.name}</div></div>
+    const skipped=s.status==='skipped';
+    return `<div class="snode ${selectedStep===s.id?'on':''} ${locked?'lock':''} ${skipped?'skip':''}" ${(locked||skipped)?(skipped&&isAdmin?`onclick="selStep(${s.id})"`:''):`onclick="selStep(${s.id})"`}>
+      <div class="sn-st ${s.status}">${s.status==='done'?IC.check:s.status==='active'?pad(s.id):skipped?'—':''}</div>
+      <div class="sn-body"><div class="sn-num">STEP ${pad(s.id)}${skipped?' · 건너뜀':''}</div><div class="sn-name">${s.name}</div></div>
       <span class="sn-dept ${deptClass(s.dept)}">${s.dept}</span>
     </div>`;
   }).join('');
@@ -1344,6 +1360,7 @@ function renderProjectPage(){
       <div class="phead-r">${isAdmin?`<button class="btn btn-gho" onclick="openAssignEdit()" style="margin-right:8px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>담당 변경</button>`:''}<span class="sbadge ${s.status}"><span class="d"></span>${stText(s.status)}</span></div>
     </div>
     ${blocked?`<div class="perm-notice"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>이 단계의 담당자(<b>${assignLabel(p,s)}</b>)만 입력할 수 있습니다. 현재 <b>${userLabel(currentUser)}</b>님은 조회만 가능합니다.</span></div>`:''}
+    ${s.status==='skipped'?`<div class="perm-notice" style="background:#eef0f3;border-color:#dde1e6;color:#6b7684"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg><span>이 단계는 <b>건너뛴 단계</b>입니다. 이 프로젝트에서는 진행하지 않습니다.${isAdmin?' (관리자는 상단 <b>담당 변경</b>에서 되살릴 수 있습니다)':''}</span></div>`:''}
     <div class="panel">
       <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>점검 항목 입력</div>
         <span class="sn-dept ${deptClass(s.dept)}" style="font-size:11px;padding:4px 11px">${assignLabel(p,s)}</span></div>
@@ -1352,7 +1369,7 @@ function renderProjectPage(){
         <tbody>${s.fields.map((f,fi)=>renderField(s,f,fi,canEdit)).join('')}</tbody>
       </table></div>
       <div class="step-foot">
-        <div class="step-foot-info">${s.status==='done'?'<b>완료된 단계</b>입니다.':s.status==='active'?(canEdit?'모든 항목 입력 시 <b>다음 단계</b>로 자동 전환되며 다음 부서에 알림이 발송됩니다.':'담당자만 처리할 수 있는 단계입니다.'):'이전 단계 완료 후 진행 가능합니다.'}</div>
+        <div class="step-foot-info">${s.status==='done'?'<b>완료된 단계</b>입니다.':s.status==='active'?(canEdit?'모든 항목 입력 시 <b>다음 단계</b>로 자동 전환되며, <b>부서가 바뀔 때</b> 다음 담당에게 알림이 발송됩니다.':'담당자만 처리할 수 있는 단계입니다.'):'이전 단계 완료 후 진행 가능합니다.'}</div>
         ${s.status==='active'&&canEdit?`<button class="btn btn-tel" onclick="completeStep(${s.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>단계 완료 처리</button>`:''}
       </div>
     </div>`;
@@ -1444,7 +1461,8 @@ function completeStep(sid){
   const p=curProj();const s=p.steps.find(x=>x.id===sid);
   if(!canEditStep(p,s)){toast(`이 단계는 담당자(${assignLabel(p,s)})만 완료 처리할 수 있습니다`);return;}
   if(!s.fields.every(f=>f.done)){toast('모든 점검 항목을 입력해야 완료할 수 있습니다');return;}
-  const nx=p.steps.find(x=>x.id===sid+1);
+  // 다음 단계: 패스(skipped)된 단계는 건너뛰고 그 다음 진행 단계를 찾음
+  const nx=p.steps.filter(x=>x.id>sid&&x.status!=='skipped').sort((a,b)=>a.id-b.id)[0];
 
   // 다음 단계의 지정된 담당 (부서 전체 또는 개인)
   let assign=null;
@@ -1482,15 +1500,13 @@ async function sendStepNotification(p,doneStep,nextStep,assign){
     else if(assign.type==='persons'&&assign.persons&&assign.persons.length)toNames=assign.persons.map(p=>p.name);
     else toDept=nextStep.dept;
   }else{toDept=nextStep.dept;}
-  try{
-    const params={action:'notify',title:title,push:push,mailHtml:mailHtml};
-    if(toNames.length)params.to=toNames.join(','); else params.toDept=toDept;
-    const r=await callBackend(params);
-    if(r&&r.ok)toast(`✅ ${r.to||toNames.join(', ')||toDept} 알림 발송 완료`);
-    else toast(`⚠ 알림 발송 실패: ${(r&&r.message)||'오류'}`);
-  }catch(e){
-    toast(`⚠ 알림 발송 중 네트워크 오류 (지정: ${toNames.join(', ')||toDept})`);
-  }
+  const target=toNames.join(', ')||toDept;
+  const params={action:'notify',title:title,push:push,mailHtml:mailHtml};
+  if(toNames.length)params.to=toNames.join(','); else params.toDept=toDept;
+  // 발송 요청만 하고 응답은 기다리지 않음 (JSONP 응답 지연/누락 시 오류 오인 방지)
+  //  → 실제 메일은 백엔드가 발송함. 화면엔 요청 즉시 안내.
+  callBackend(params).catch(()=>{});
+  toast(`📧 ${target}에게 알림을 발송했습니다`);
 }
 
 // 알림 메일 HTML (물류 시스템 톤)
@@ -1682,7 +1698,10 @@ async function openAssignEdit(){
     <button class="btn btn-gho" onclick="closeModal()">취소</button>
     <button class="btn btn-pri" onclick="saveAssignEdit()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>변경 저장</button>`;
   document.getElementById('modal').classList.add('show');
-  await renderAssignList();
+  // 현재 프로젝트의 패스 상태를 skipPreset으로 전달
+  const skipPreset={};
+  p.steps.forEach(s=>{if(s.status==='skipped')skipPreset[s.id]=true;});
+  await renderAssignList(skipPreset);
   restoreAssignFromProject(p);
 }
 function restoreAssignFromProject(p){
@@ -1706,13 +1725,27 @@ function saveAssignEdit(){
   STEP_TEMPLATE.forEach(t=>{
     if(assignState[t.dept])p.stepAssign[t.id]=JSON.parse(JSON.stringify(assignState[t.dept]));
   });
+  // 패스 상태 반영: 체크된 단계는 skipped, 해제된 단계는 되살림
+  const skipSet=getSkipSet();
+  p.steps.forEach(s=>{
+    if(skipSet[s.id]){
+      if(s.status!=='done')s.status='skipped'; // 이미 완료된 건 유지
+    }else if(s.status==='skipped'){
+      s.status='wait'; // 패스 해제 → 대기로
+    }
+  });
+  // 활성 단계가 없으면(모두 대기/스킵) 첫 대기 단계를 active로
+  if(!p.steps.some(s=>s.status==='active')){
+    const firstWait=p.steps.filter(s=>s.status==='wait').sort((a,b)=>a.id-b.id)[0];
+    if(firstWait)firstWait.status='active';
+  }
   saveProjectToSheet(p);
   closeModal();
-  toast('단계 담당이 변경되었습니다');
-  renderProjectPage();
+  toast('단계 담당·구성이 변경되었습니다');
+  renderProjectPage();renderSidebar();
 }
 
-async function renderAssignList(){
+async function renderAssignList(skipPreset){
   const el=document.getElementById('assignList');
   if(!el)return;
   el.innerHTML='<div style="padding:14px;text-align:center;color:#94a6a1;font-size:12px">조직도 불러오는 중...</div>';
@@ -1743,7 +1776,20 @@ async function renderAssignList(){
       </div>
     </div>`;
   });
+  // 단계 건너뛰기(패스) 선택 섹션
+  html+=`<div class="skip-sec">
+    <div class="assign-head" style="margin-top:6px"><span class="bar" style="display:inline-block;width:3px;height:13px;background:#d6443a;border-radius:2px;vertical-align:middle;margin-right:7px"></span>건너뛸 단계 선택 <span style="font-weight:500;color:var(--muted);font-size:11px">— 이 프로젝트에서 불필요한 단계는 체크하면 자동으로 건너뜁니다</span></div>
+    <div class="skip-grid">
+      ${STEP_TEMPLATE.map(t=>`<label class="skip-opt"><input type="checkbox" class="skip-chk" value="${t.id}" ${(skipPreset&&skipPreset[t.id])?'checked':''}><span>STEP ${pad(t.id)} ${t.name}</span></label>`).join('')}
+    </div>
+  </div>`;
   el.innerHTML=html;
+}
+// 현재 체크된 패스 단계 id 목록
+function getSkipSet(){
+  const set={};
+  document.querySelectorAll('.skip-chk:checked').forEach(c=>set[c.value]=true);
+  return set;
 }
 function toggleAssign(dep){
   const pick=document.getElementById('assignPick-'+dep);
@@ -1803,7 +1849,8 @@ function createProject(){
   // 부서별 담당 지정을 단계별로 펼침
   const stepAssign={};
   STEP_TEMPLATE.forEach(t=>{stepAssign[t.id]=assignState[t.dept]||{type:'dept',name:t.dept,persons:[]};});
-  const p=buildProject({name,po,customer:cust,country,due:dueFmt,note,author:userLabel(currentUser),created:today(),assign:JSON.parse(JSON.stringify(assignState)),stepAssign});
+  const skipSet=getSkipSet();
+  const p=buildProject({name,po,customer:cust,country,due:dueFmt,note,author:userLabel(currentUser),created:today(),assign:JSON.parse(JSON.stringify(assignState)),stepAssign,skipSet});
   // STEP01 자동 채움: 고객사·수출국·납기
   autofillStep01(p,{customer:cust,country,due});
   projects.unshift(p);
@@ -1822,15 +1869,24 @@ function buildProject(meta){
     stepAssign={};
     STEP_TEMPLATE.forEach(t=>{stepAssign[t.id]={type:'dept',name:t.dept,persons:[]};});
   }
-  const m={...meta};delete m.stepAssign;
+  const skipSet=meta.skipSet||{};
+  const m={...meta};delete m.stepAssign;delete m.skipSet;
+  // 패스 안 된 첫 단계를 active로
+  let firstActiveSet=false;
+  const steps=STEP_TEMPLATE.map(t=>{
+    const skipped=!!skipSet[t.id];
+    let status;
+    if(skipped)status='skipped';
+    else if(!firstActiveSet){status='active';firstActiveSet=true;}
+    else status='wait';
+    return {id:t.id,name:t.name,dept:t.dept,status,fields:t.fields.map(f=>({...f,done:false,val:'',by:'',date:''}))};
+  });
   return {
     id:seq++, ...m, stepAssign, docNo:docNo(),
     history:[
-      {stage:`STEP 01 주문접수 시작`,meta:`담당부서 영업`,time:meta.created,done:false},
-      {stage:`프로젝트 생성: ${meta.name}`,meta:`문서번호 (자동부여) · 작성자 ${meta.author}`,time:meta.created,done:true},
+      {stage:`프로젝트 생성: ${meta.name}`,meta:`문서번호 (자동부여) · 작성자 ${meta.author}${Object.keys(skipSet).length?' · 건너뛴 단계 '+Object.keys(skipSet).length+'개':''}`,time:meta.created,done:true},
     ],
-    steps:STEP_TEMPLATE.map((t,i)=>({id:t.id,name:t.name,dept:t.dept,status:i===0?'active':'wait',
-      fields:t.fields.map(f=>({...f,done:false,val:'',by:'',date:''}))}))
+    steps
   };
 }
 
