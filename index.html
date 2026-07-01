@@ -995,7 +995,7 @@ function showTransition(name,msg,cb){
   const t=document.getElementById('trans'),bar=document.getElementById('transBar');
   bar.classList.remove('run');void bar.offsetWidth;
   t.classList.add('show');bar.classList.add('run');
-  setTimeout(()=>{if(cb)cb();setTimeout(()=>t.classList.remove('show'),250);},1150);
+  setTimeout(()=>{try{if(cb)cb();}catch(e){}setTimeout(()=>t.classList.remove('show'),250);},1150);
 }
 
 // ===== 백엔드 연동 설정 =====
@@ -1204,13 +1204,16 @@ async function doDeviceAuth(){
 function enterApp(u,firstBind){
   currentUser=u;
   const lg=document.getElementById('login');
-  lg.classList.add('hide');
-  showTransition('해외물류 관리시스템', firstBind?`${u.name} ${u.rank}님, 환영합니다`:`${u.name} ${u.rank}님으로 자동 로그인`,async()=>{
-    lg.classList.add('hide');
-    document.getElementById('app').classList.add('show');document.getElementById('app').classList.add('dark');
+  const app=document.getElementById('app');
+  // 화면 전환은 트랜지션과 무관하게 즉시 확정 (콜백에서 예외가 나도 로그인 화면으로 돌아가지 않도록)
+  lg.classList.add('hide');lg.style.display='none';
+  app.classList.add('show');app.classList.add('dark');
+  try{
     document.getElementById('tbUser').innerHTML=`<span class="dot"></span><b>${userLabel(u)}</b><span class="tb-dept"> · ${u.dept}${isSuperUser(u)?' · 개발자':''}</span>`;
+  }catch(e){}
+  showTransition('해외물류 관리시스템', firstBind?`${u.name} ${u.rank}님, 환영합니다`:`${u.name} ${u.rank}님으로 자동 로그인`,async()=>{
     try{ await loadDataIntoApp(); }catch(e){ if(projects.length===0)seedSampleData(); }
-    try{ if(!openDeepLink())switchTab('dashboard'); }catch(e){ switchTab('dashboard'); }
+    try{ if(!openDeepLink())switchTab('dashboard'); }catch(e){ try{switchTab('dashboard');}catch(_){} }
   });
 }
 
