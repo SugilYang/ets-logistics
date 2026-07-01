@@ -715,7 +715,7 @@ const BACKEND_URL='https://script.google.com/macros/s/AKfycbx492tfAQ40NWcyf8VtKw
 
 // 메일 "바로가기" 링크 주소 (※ 실제 시스템 배포 후 그 주소로 교체)
 //   배포 후엔 `https://물류시스템주소/?project=○&step=○` 형태로 바꾸면 해당 단계로 바로 이동
-const SYSTEM_URL='https://ets1.co.kr';
+const SYSTEM_URL='https://sugilyang.github.io/ets-logistics/';
 
 // 백엔드 호출 (CORS 대응)
 //  - 읽기/짧은 요청: JSONP (script 태그, CORS 제약 없음)
@@ -919,8 +919,29 @@ function enterApp(u,firstBind){
     document.getElementById('app').classList.add('show');
     document.getElementById('tbUser').innerHTML=`<span class="dot"></span><b>${userLabel(u)}</b><span class="tb-dept"> · ${u.dept}${isSuperUser(u)?' · 개발자':''}</span>`;
     await loadDataIntoApp();
-    switchTab('dashboard');
+    if(!openDeepLink())switchTab('dashboard');
   });
+}
+
+// 메일 링크(?project=N&step=N)로 접속 시 해당 프로젝트·단계로 이동
+function openDeepLink(){
+  try{
+    const q=new URLSearchParams(location.search);
+    const pid=q.get('project'), sid=q.get('step');
+    if(!pid)return false;
+    const p=projects.find(x=>String(x.id)===String(pid));
+    if(!p)return false;
+    activeProjectId=p.id;
+    if(sid){
+      const st=p.steps.find(x=>String(x.id)===String(sid));
+      selectedStep=st?st.id:(p.steps.find(s=>s.status==='active')||{id:1}).id;
+    }else{
+      selectedStep=(p.steps.find(s=>s.status==='active')||{id:1}).id;
+    }
+    switchTab('project');
+    try{history.replaceState(null,'',SYSTEM_URL);}catch(e){}
+    return true;
+  }catch(e){return false;}
 }
 
 // 시트에서 데이터 로딩 (없으면 샘플 시드 후 저장)
@@ -1503,6 +1524,8 @@ async function sendStepNotification(p,doneStep,nextStep,assign){
   const target=toNames.join(', ')||toDept;
   const params={action:'notify',title:title,push:push,mailHtml:mailHtml};
   if(toNames.length)params.to=toNames.join(','); else params.toDept=toDept;
+  // 발신자 = 실제 처리한 사람(현재 로그인 사용자)의 사번
+  if(currentUser&&currentUser.empNo)params.senderEmpNo=currentUser.empNo;
   // 발송 요청만 하고 응답은 기다리지 않음 (JSONP 응답 지연/누락 시 오류 오인 방지)
   //  → 실제 메일은 백엔드가 발송함. 화면엔 요청 즉시 안내.
   callBackend(params).catch(()=>{});
@@ -1541,7 +1564,7 @@ function buildMailHtml(p,doneStep,nextStep){
   +row('납기일',p.due)
   +'</table>'
   // 버튼
-  +`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;"><tr><td align="center" style="background:#2563c9;border-radius:8px;"><a href="${SYSTEM_URL}" style="display:block;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:16px 0;text-align:center;">단계 확인하러 가기 →</a></td></tr></table>`
+  +`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;"><tr><td align="center" style="background:#2563c9;border-radius:8px;"><a href="${SYSTEM_URL}?project=${p.id}&step=${nextStep.id}" style="display:block;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:16px 0;text-align:center;">단계 확인하러 가기 →</a></td></tr></table>`
   // 푸터
   +'<div style="font-size:12px;color:#94a6a1;margin-top:22px;line-height:1.7;border-top:1px solid #eef1f5;padding-top:16px;">본 메일은 해외물류 관리시스템에서 자동 발송되었습니다.<br>처리 담당자 또는 부서원이 확인 후 다음 단계를 진행해 주세요.</div>'
   +'</td></tr>'
