@@ -430,13 +430,16 @@ table.erp tbody tr:hover{background:#fafcff}
 .kpi-sub{font-size:11px;color:var(--muted-2);margin-top:5px}
 @media(max-width:900px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:520px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.kpi-val{font-size:24px}}
-/* 대시보드 메인: 좌(지도+범례) 우(월별추이) 2단 */
-.dash-main-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start}
+/* 대시보드 메인: 지도카드(지도폭 고정) + 가운데 아이콘 + 월별추이(나머지) */
+.dash-main-row{display:grid;grid-template-columns:minmax(360px,460px) auto 1fr;gap:14px;margin-bottom:16px;align-items:start}
 .map-panel{overflow:hidden;margin-bottom:0;display:flex;flex-direction:column}
 .world-map{height:300px;width:100%;background:#eaf2fb;border-radius:0}
 .world-map .leaflet-container{background:#eaf2fb}
 .map-pop b{font-size:13px}
 .chart-side{margin-bottom:0}
+/* 가운데 물류 아이콘 */
+.dash-mid-icon{align-self:center;display:flex;align-items:center;justify-content:center;padding:4px}
+.dash-mid-icon svg{width:38px;height:38px;color:#7fb4ff;opacity:.55}
 /* 국가 범례 (지도 아래) */
 .map-legend{display:flex;flex-wrap:wrap;gap:6px;padding:11px 14px;border-top:1px solid var(--line)}
 .mleg{font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 9px;border-radius:7px;border:1px solid var(--line);transition:.15s;color:var(--ink-2)}
@@ -463,7 +466,7 @@ table.erp tbody tr:hover{background:#fafcff}
 .site-dd.dd-soon{background:#fdf3e2;color:#e08a1e}
 .site-dd.dd-ok{background:#e6f7ee;color:#0d9c5f}
 .chart-wrap{width:100%;overflow:hidden}
-@media(max-width:900px){.dash-main-row{grid-template-columns:1fr}.world-map{height:280px}}
+@media(max-width:900px){.dash-main-row{grid-template-columns:1fr}.world-map{height:280px}.dash-mid-icon{display:none}}
 /* 반짝이는 핀 (밝은 지도용 - 빨강 계열로 잘 보이게) */
 .glow-pin-wrap{background:none!important;border:none!important}
 .glow-pin{position:relative;display:flex;align-items:center;justify-content:center;--pin:#e23b3b}
@@ -1622,6 +1625,14 @@ function renderDashboard(){
         <div class="map-legend" id="mapLegend"></div>
         <div class="site-detail" id="sitePanel"></div>
       </div>
+      <div class="dash-mid-icon" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 30h40l-4 8H8z"/>
+          <path d="M10 30V16h12l6 6h8a4 4 0 0 1 4 4v4"/>
+          <line x1="10" y1="22" x2="22" y2="22"/>
+          <circle cx="16" cy="42" r="2.2"/><circle cx="34" cy="42" r="2.2"/>
+        </svg>
+      </div>
       <div class="panel chart-side">
         <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>월별 처리 추이</div><span class="panel-h-s">완료 건수 · 물류비용(원)</span></div>
         <div class="panel-b">${_chartMonthly(monthly)}</div>
@@ -1859,7 +1870,7 @@ function renderWorldMap(countryDist){
   el.innerHTML='';
   // 세계 전체가 보이는 뷰로 고정
   const isMobile=window.innerWidth<720;
-  const map=L.map(el,{center:[20,0],zoom:1.4,minZoom:1,maxZoom:6,zoomControl:!isMobile,attributionControl:false,worldCopyJump:false,scrollWheelZoom:false,
+  const map=L.map(el,{center:[20,0],zoom:1.4,minZoom:0,maxZoom:6,zoomControl:!isMobile,attributionControl:false,worldCopyJump:false,scrollWheelZoom:false,
     dragging:!isMobile,           // 모바일: 한 손가락 드래그 끔 (스크롤 방해 방지)
     touchZoom:true,               // 두 손가락 확대는 허용
     tap:false,
@@ -1907,7 +1918,12 @@ function renderWorldMap(countryDist){
   });
 
   try{renderMapLegend(countryDist);}catch(e){}
-  setTimeout(()=>{try{map.invalidateSize();map.fitWorld({padding:[2,2]});map.setView(map.getCenter(),map.getZoom());}catch(e){try{map.setView([20,0],1.4);}catch(_){}}},200);
+  setTimeout(()=>{try{
+    map.invalidateSize();
+    // 카드 폭을 가로로 꽉 채우기: 세계 경도 전체를 가로에 맞춤 (위아래는 적당히 채워짐)
+    const b=L.latLngBounds([[-56,-168],[74,192]]);
+    map.fitBounds(b,{padding:[0,0]});
+  }catch(e){try{map.setView([20,0],1.4);}catch(_){}}},200);
 }
 
 // ── 차트: 단계별 분포 (가로 막대) ──
