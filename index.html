@@ -491,6 +491,18 @@ table.erp tbody tr:hover{background:#fafcff}
 #app.dark .main{background:radial-gradient(ellipse 130% 90% at 50% -10%,#141f36 0%,#0b1424 55%,#070c17 100%)}
 #app.dark .content{background:transparent}
 #app.dark .page{color:#c7d3e6}
+/* 다크: var(--ink) 계열을 쓰던 본문 텍스트가 어둡게 나오던 문제 일괄 보정 */
+#app.dark .tl-stage,#app.dark .ci-name,#app.dark .empty-t{color:#e6eefc}
+#app.dark .tl-stage.empty,#app.dark .tl-meta{color:#8ba0c0}
+#app.dark .panel-h-t{color:#e6eefc}
+/* 알림벨 드롭다운 다크 통일 */
+#app.dark .bell-dropdown{background:#111c30;border-color:rgba(120,180,255,.18)}
+#app.dark .bell-head{color:#e6eefc;background:linear-gradient(180deg,rgba(245,158,66,.12),rgba(17,28,48,0));border-bottom-color:rgba(120,180,255,.12)}
+#app.dark .bell-item{border-bottom-color:rgba(120,180,255,.1)}
+#app.dark .bell-item:hover{background:rgba(59,130,246,.15)}
+#app.dark .bell-it-nm{color:#e6eefc}
+#app.dark .bell-it-sub{color:#8ba0c0}
+#app.dark .bell-empty{color:#8ba0c0}
 /* 메뉴바 */
 #app.dark .menubar{background:rgba(12,20,38,.85);border-bottom:1px solid rgba(120,180,255,.12);backdrop-filter:blur(10px)}
 #app.dark .mtab{color:#8ba0c0}
@@ -516,6 +528,10 @@ table.erp tbody tr:hover{background:#fafcff}
 #app.dark .erp .list-table tbody tr{border-color:rgba(120,180,255,.06)}
 /* 입력·검색·필터 */
 #app.dark .lt-search input,#app.dark .lt-sel,#app.dark .erp-inp,#app.dark .erp-sel,#app.dark input[type=text],#app.dark input[type=date],#app.dark select,#app.dark textarea{background:rgba(255,255,255,.05);border:1px solid rgba(120,180,255,.18);color:#e6eefc}
+/* 다크: 드롭다운 펼친 옵션이 안 보이던 문제 — select 박스는 불투명 어두운 배경, 옵션은 명시적으로 어두운 배경+밝은 글씨 */
+#app.dark .lt-sel,#app.dark .erp-sel,#app.dark select,#app.dark .fval select{background-color:#16233c;color:#e6eefc}
+#app.dark select option,#app.dark .lt-sel option,#app.dark .erp-sel option,#app.dark .fval select option{background:#16233c;color:#e6eefc;-webkit-text-fill-color:#e6eefc}
+#app.dark select option:checked,#app.dark select option:hover{background:#24406e;color:#fff}
 #app.dark .lt-search input::placeholder,#app.dark .erp-inp::placeholder{color:#5f728f}
 #app.dark input:-webkit-autofill,#app.dark input:-webkit-autofill:hover,#app.dark input:-webkit-autofill:focus{-webkit-text-fill-color:#e6eefc!important;-webkit-box-shadow:0 0 0 60px #16233c inset!important;caret-color:#e6eefc}
 #app.dark input,#app.dark select,#app.dark textarea{-webkit-text-fill-color:#e6eefc}
@@ -628,6 +644,8 @@ table.erp tbody tr:hover{background:#fafcff}
 .dark-dash .cur-step{color:#c7d3e6}
 .me-badge{font-size:10px;color:#2563c9;font-weight:700}
 #app.dark .me-badge{color:#7fb4ff}
+.when-cell{color:#6b817c}
+#app.dark .when-cell{color:#8ba0c0}
 /* 납기 경고 표 모바일 카드형 */
 @media(max-width:680px){
   .urgent-table thead{display:none}
@@ -886,7 +904,7 @@ table.erp tbody tr:hover{background:#fafcff}
 <script>
 // ===== 앱 버전 & 자동 업데이트 =====
 // 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
-const APP_VERSION='20260702-134004';
+const APP_VERSION='20260702-234753';
 // 편집 중(모달 열림)인지 판단
 function _isEditing(){
   const m=document.getElementById('modal');
@@ -1092,7 +1110,7 @@ async function callBackend(params){
 function callBackendJSONP(params){
   return new Promise((resolve,reject)=>{
     const cbName='_jsonp_'+Date.now()+'_'+Math.floor(Math.random()*100000);
-    const timer=setTimeout(()=>{cleanup();reject(new Error('timeout'));},8000);
+    const timer=setTimeout(()=>{cleanup();reject(new Error('timeout'));},15000);
     function cleanup(){clearTimeout(timer);delete window[cbName];if(script.parentNode)script.parentNode.removeChild(script);}
     window[cbName]=(data)=>{cleanup();resolve(data);};
     const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
@@ -1118,21 +1136,22 @@ async function callBackendPost(params){
 const DEPT_MAP={"영업":["영업 GR"],"생산관리":["생산관리"],"품질":["품질"],"물류":["물류"]};
 let orgTreeCache=null;  // 백엔드에서 받은 조직도 [{dept,count,members:[{name,rank,empNo}]}]
 
-// 조직도 로딩 (백엔드 호출, 실패 시 폴백)
+// 조직도 로딩 (백엔드 호출 성공 시에만 캐시. 실패해도 폴백을 캐시에 넣지 않아 다음에 재시도됨)
+let orgLoadFailed=false;   // 마지막 시도가 실패했는지
 async function loadOrgTree(){
-  if(orgTreeCache)return orgTreeCache;
-  try{
-    const r=await callBackend({action:'orgtree'});
-    if(r&&r.ok&&r.tree){orgTreeCache=r.tree;return orgTreeCache;}
-  }catch(e){}
-  // 폴백 (외부망 차단 환경 시연용)
-  orgTreeCache=[
-    {dept:'영업 GR',count:3,members:[{name:'정유진',rank:'과장',empNo:'1'},{name:'이승훈',rank:'팀원',empNo:'2'},{name:'지민구',rank:'BM',empNo:'3'}]},
-    {dept:'생산관리',count:4,members:[{name:'이수현',rank:'사원',empNo:'4'},{name:'박태양',rank:'대리',empNo:'5'},{name:'김미소',rank:'팀원',empNo:'6'},{name:'이근창',rank:'BM',empNo:'7'}]},
-    {dept:'품질',count:4,members:[{name:'박주혁',rank:'팀원',empNo:'8'},{name:'배철곤',rank:'팀원',empNo:'9'},{name:'정영수',rank:'팀원',empNo:'10'}]},
-    {dept:'물류',count:2,members:[{name:'안상원',rank:'TM',empNo:'11'},{name:'이정우',rank:'팀원',empNo:'12'}]},
-  ];
-  return orgTreeCache;
+  if(orgTreeCache)return orgTreeCache;   // 성공한 실데이터만 여기 들어옴
+  orgLoadFailed=false;
+  // 최대 2회 시도 (초기 로딩 혼잡으로 첫 시도가 실패할 수 있음)
+  for(let attempt=0;attempt<2;attempt++){
+    try{
+      const r=await callBackend({action:'orgtree'});
+      if(r&&r.ok&&r.tree&&r.tree.length){orgTreeCache=r.tree;return orgTreeCache;}
+    }catch(e){}
+    await new Promise(res=>setTimeout(res,600)); // 잠깐 쉬고 재시도
+  }
+  // 여기 왔으면 실패 — 폴백은 캐시에 저장하지 않음 (다음 호출 때 백엔드 다시 시도)
+  orgLoadFailed=true;
+  return null;
 }
 // 부서에 수동으로 추가할 멤버 (조직도상 다른 부서지만 담당 후보에 포함)
 // 이근창 BM = 생산기술 GR 장이지만 생산관리 단계 담당 후보에 포함
@@ -2300,7 +2319,7 @@ async function renderDevices(){
       const isMe=String(d.deviceId)===String(myId);
       const when=d.boundAt?new Date(d.boundAt).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
       const typeLabel=d.devType==='mobile'?'📱 모바일':'💻 PC';
-      return `<tr><td><b>${d.name}</b>${isMe?' <span class="me-badge">(이 기기)</span>':''}</td><td style="font-size:12px">${typeLabel}</td><td>${d.rank||'—'}</td><td>${d.dept||'—'}</td><td class="mono" style="font-size:11.5px;color:#6b817c">${when}</td>
+      return `<tr><td><b>${d.name}</b>${isMe?' <span class="me-badge">(이 기기)</span>':''}</td><td style="font-size:12px">${typeLabel}</td><td>${d.rank||'—'}</td><td>${d.dept||'—'}</td><td class="mono when-cell" style="font-size:11.5px">${when}</td>
         <td><button class="adm-del" onclick="unbindDeviceRemote('${d.deviceId}','${d.name}')" title="기기 고정 해제"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg> 해제</button></td></tr>`;
     }).join('')}</tbody></table></div>
     <div style="padding:12px 16px;font-size:11.5px;color:#94a6a1;border-top:1px solid var(--line);line-height:1.6">· 한 사람당 <b>PC 1대 + 모바일 1대</b>까지 등록됩니다. 기기를 바꾸려면 기존 기기를 <b>해제</b>해야 새 기기 등록이 가능합니다.<br>· <b>해제</b>하면 그 기기는 다음 접속 시 다시 본인 인증이 필요합니다.</div>`;
@@ -2479,7 +2498,16 @@ async function renderAssignList(skipPreset){
   const el=document.getElementById('assignList');
   if(!el)return;
   el.innerHTML='<div style="padding:14px;text-align:center;color:#94a6a1;font-size:12px">조직도 불러오는 중...</div>';
-  await loadOrgTree();
+  const tree=await loadOrgTree();
+  if(!tree){
+    // 조직도 로딩 실패 — 가짜 데이터를 쓰지 않고 명확히 안내 + 재시도
+    el.innerHTML=`<div style="padding:20px 14px;text-align:center">
+      <div style="color:#d6443a;font-size:13px;font-weight:600;margin-bottom:6px">조직도를 불러오지 못했습니다</div>
+      <div style="color:#94a6a1;font-size:12px;line-height:1.6;margin-bottom:12px">네트워크 상태를 확인한 뒤 다시 시도해 주세요.<br>계속 실패하면 페이지를 새로고침(F5) 해주세요.</div>
+      <button class="btn btn-pri" style="font-size:12px;padding:7px 16px" onclick="renderAssignList()">다시 시도</button>
+    </div>`;
+    return;
+  }
   assignState={};
   const deptSteps={};
   STEP_TEMPLATE.forEach(t=>{(deptSteps[t.dept]=deptSteps[t.dept]||[]).push(t.id);});
