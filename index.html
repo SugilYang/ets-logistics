@@ -73,7 +73,7 @@ input,select,textarea{font-family:inherit}
 .lgf input::placeholder{color:#5f728f}
 .lgf input:-webkit-autofill,.lgf input:-webkit-autofill:hover,.lgf input:-webkit-autofill:focus{-webkit-text-fill-color:#e6eefc!important;-webkit-box-shadow:0 0 0 60px #1a2842 inset!important;caret-color:#e6eefc}
 .lgf label{color:#8ba0c0}
-.lgf input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,201,.1);background:#fff}
+.lgf input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,201,.18);background:rgba(255,255,255,.09);color:#e6eefc;-webkit-text-fill-color:#e6eefc}
 .lgbtn{width:100%;padding:12px;margin-top:4px;background:linear-gradient(140deg,var(--blue),var(--blue-d));color:#fff;border:none;border-radius:7px;font-size:14px;font-weight:700;letter-spacing:.3px;transition:box-shadow .2s}
 .lgbtn:hover{box-shadow:0 6px 18px -4px rgba(37,99,201,.55)}
 .lg-auth-badge{display:flex;align-items:center;gap:10px;background:rgba(59,130,246,.12);border:1px solid rgba(120,180,255,.2);border-radius:8px;padding:10px 12px;margin-bottom:14px}
@@ -427,19 +427,41 @@ table.erp tbody tr:hover{background:#fafcff}
 .kpi-sub{font-size:11px;color:var(--muted-2);margin-top:5px}
 @media(max-width:900px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:520px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.kpi-val{font-size:24px}}
-/* 세계지도 + 순위 나란히 */
-.map-row{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:16px}
-.map-panel{overflow:hidden;margin-bottom:0}
-.rank-panel{margin-bottom:0}
-.world-map{height:320px;width:100%;background:#eaf2fb;border-radius:0}
+/* 세계지도 + 사이트 현황 나란히 */
+.map-row{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-bottom:16px}
+.map-panel{overflow:hidden;margin-bottom:0;display:flex;flex-direction:column}
+.map-panel .world-map{flex:1}
+.site-panel{margin-bottom:0;display:flex;flex-direction:column}
+.world-map{height:360px;width:100%;background:#eaf2fb;border-radius:0}
 .world-map .leaflet-container{background:#eaf2fb}
-.map-legend{display:flex;flex-wrap:wrap;gap:6px 12px;padding:11px 16px;border-top:1px solid var(--line)}
-.mleg{font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;border-radius:6px;transition:background .15s}
-.mleg:hover{background:var(--blue-l)}
-.mleg-dot{width:8px;height:8px;border-radius:50%;background:#2563c9;box-shadow:0 0 6px #2563c9}
-.mleg b{color:#2563c9}
 .map-pop b{font-size:13px}
-@media(max-width:900px){.map-row{grid-template-columns:1fr}.world-map{height:300px}}
+/* 사이트별 진행 현황 패널 */
+.site-panel-b{display:flex;flex-direction:column;gap:12px;max-height:360px;overflow-y:auto}
+.site-chips{display:flex;flex-wrap:wrap;gap:6px}
+.site-chip{font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 9px;border-radius:7px;border:1px solid var(--line);transition:.15s;color:var(--ink-2)}
+.site-chip .site-chip-dot{width:8px;height:8px;border-radius:50%;background:var(--cc);box-shadow:0 0 6px var(--cc)}
+.site-chip b{color:var(--cc)}
+.site-chip:hover{background:var(--blue-l)}
+.site-chip.on{background:var(--cc);border-color:var(--cc);color:#fff}
+.site-chip.on b,.site-chip.on .site-chip-dot{color:#fff;background:#fff}
+.site-hint{text-align:center;color:#94a6a1;font-size:12.5px;line-height:1.7;padding:26px 10px}
+.site-list{display:flex;flex-direction:column;gap:9px}
+.site-item{border:1px solid var(--line);border-radius:9px;padding:10px 12px;cursor:pointer;transition:.15s;background:var(--card)}
+.site-item:hover{border-color:#3b82f6;box-shadow:0 2px 10px rgba(59,130,246,.12)}
+.site-item-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.site-item-top b{font-size:13px;color:var(--ink)}
+.site-item-sub{font-size:11.5px;color:var(--muted-2);margin:3px 0 7px}
+.site-prog{height:6px;border-radius:4px;background:var(--line);overflow:hidden}
+.site-prog-fill{height:100%;border-radius:4px;transition:width .3s}
+.site-prog-txt{font-size:10.5px;color:var(--muted-2);margin-top:4px;text-align:right}
+.site-dd{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:8px}
+.site-dd.dd-late{background:#fbecea;color:#d6443a}
+.site-dd.dd-soon{background:#fdf3e2;color:#e08a1e}
+.site-dd.dd-ok{background:#e6f7ee;color:#0d9c5f}
+/* 월별 추이 전체폭 */
+.chart-row-full{margin-bottom:16px}
+.chart-wrap{width:100%;overflow:hidden}
+@media(max-width:900px){.map-row{grid-template-columns:1fr}.world-map{height:300px}.site-panel-b{max-height:none}}
 /* 반짝이는 핀 (밝은 지도용 - 빨강 계열로 잘 보이게) */
 .glow-pin-wrap{background:none!important;border:none!important}
 .glow-pin{position:relative;display:flex;align-items:center;justify-content:center;--pin:#e23b3b}
@@ -585,15 +607,26 @@ table.erp tbody tr:hover{background:#fafcff}
 .dark-dash .chart-empty{color:#5f728f}
 /* 지도 패널 */
 .dark-dash .world-map{background:#0a1120}
-.dark-dash .map-legend{border-top:1px solid rgba(120,180,255,.1)}
-.dark-dash .mleg{color:#aebdd6}
-.dark-dash .mleg:hover{background:rgba(59,130,246,.15)}
+/* 사이트별 진행 현황 (다크) */
+.dark-dash .site-chip{color:#c7d3e6;border-color:rgba(120,180,255,.18);background:rgba(255,255,255,.03)}
+.dark-dash .site-chip:hover{background:rgba(59,130,246,.18)}
+.dark-dash .site-hint{color:#6b7d99}
+.dark-dash .site-item{background:rgba(255,255,255,.03);border-color:rgba(120,180,255,.12)}
+.dark-dash .site-item:hover{border-color:#3b82f6;box-shadow:0 2px 12px rgba(59,130,246,.25)}
+.dark-dash .site-item-top b{color:#e6eefc}
+.dark-dash .site-item-sub{color:#8ba0c0}
+.dark-dash .site-prog{background:rgba(255,255,255,.08)}
+.dark-dash .site-prog-txt{color:#8ba0c0}
 /* 납기 경고 표 */
 .dark-dash .erp thead th{background:rgba(255,255,255,.03);color:#8ba0c0;border-color:rgba(120,180,255,.1)}
 .dark-dash .erp td{border-color:rgba(120,180,255,.07);color:#c7d3e6}
 .dark-dash .erp .list-row:hover{background:rgba(59,130,246,.1)}
 .dark-dash .country-tag{background:rgba(120,180,255,.12);color:#9fc3ff}
 .dark-dash .mono{color:#aebdd6}
+.cur-step{font-size:12px;color:#3d4759}
+.dark-dash .cur-step{color:#c7d3e6}
+.me-badge{font-size:10px;color:#2563c9;font-weight:700}
+#app.dark .me-badge{color:#7fb4ff}
 /* 납기 경고 표 모바일 카드형 */
 @media(max-width:680px){
   .urgent-table thead{display:none}
@@ -632,6 +665,12 @@ table.erp tbody tr:hover{background:#fafcff}
 .guide-num{width:34px;height:34px;border-radius:10px;flex-shrink:0;color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center}
 .guide-title{font-size:15px;font-weight:700;color:#1a2233;margin-bottom:4px}
 .guide-text{font-size:13px;color:#6b817c;line-height:1.65}
+.guide-para{font-size:13px;line-height:1.7;color:#3d4759}
+#app.dark .guide-title{color:#e6eefc}
+#app.dark .guide-text{color:#8ba0c0}
+#app.dark .guide-para{color:#c7d3e6}
+#app.dark .guide-step{border-bottom-color:rgba(120,180,255,.1)}
+#app.dark .guide-para b[style*="2563c9"]{color:#7fb4ff!important}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
 /* 반응형 */
@@ -995,7 +1034,7 @@ function showTransition(name,msg,cb){
   const t=document.getElementById('trans'),bar=document.getElementById('transBar');
   bar.classList.remove('run');void bar.offsetWidth;
   t.classList.add('show');bar.classList.add('run');
-  setTimeout(()=>{try{if(cb)cb();}catch(e){}setTimeout(()=>t.classList.remove('show'),250);},1150);
+  setTimeout(()=>{if(cb)cb();setTimeout(()=>t.classList.remove('show'),250);},1150);
 }
 
 // ===== 백엔드 연동 설정 =====
@@ -1204,16 +1243,13 @@ async function doDeviceAuth(){
 function enterApp(u,firstBind){
   currentUser=u;
   const lg=document.getElementById('login');
-  const app=document.getElementById('app');
-  // 화면 전환은 트랜지션과 무관하게 즉시 확정 (콜백에서 예외가 나도 로그인 화면으로 돌아가지 않도록)
-  lg.classList.add('hide');lg.style.display='none';
-  app.classList.add('show');app.classList.add('dark');
-  try{
-    document.getElementById('tbUser').innerHTML=`<span class="dot"></span><b>${userLabel(u)}</b><span class="tb-dept"> · ${u.dept}${isSuperUser(u)?' · 개발자':''}</span>`;
-  }catch(e){}
+  lg.classList.add('hide');
   showTransition('해외물류 관리시스템', firstBind?`${u.name} ${u.rank}님, 환영합니다`:`${u.name} ${u.rank}님으로 자동 로그인`,async()=>{
+    lg.classList.add('hide');
+    document.getElementById('app').classList.add('show');document.getElementById('app').classList.add('dark');
+    document.getElementById('tbUser').innerHTML=`<span class="dot"></span><b>${userLabel(u)}</b><span class="tb-dept"> · ${u.dept}${isSuperUser(u)?' · 개발자':''}</span>`;
     try{ await loadDataIntoApp(); }catch(e){ if(projects.length===0)seedSampleData(); }
-    try{ if(!openDeepLink())switchTab('dashboard'); }catch(e){ try{switchTab('dashboard');}catch(_){} }
+    try{ if(!openDeepLink())switchTab('dashboard'); }catch(e){ switchTab('dashboard'); }
   });
 }
 
@@ -1574,32 +1610,23 @@ function renderDashboard(){
       <div class="panel map-panel">
         <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>글로벌 물류 현황</div><span style="font-size:11px;color:#94a6a1">국가별 발송 · 핀 클릭 시 상세</span></div>
         <div id="worldMap" class="world-map"></div>
-        <div class="map-legend" id="mapLegend"></div>
       </div>
-      <div class="panel rank-panel">
-        <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>국가별 발송 순위</div></div>
-        <div class="panel-b">${_chartCountryRank(countryDist)}</div>
+      <div class="panel site-panel">
+        <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>사이트별 진행 현황</div><span class="panel-h-s">국가 클릭 시 상세</span></div>
+        <div class="panel-b site-panel-b" id="sitePanel">${_siteStatusPanel(countryDist,null)}</div>
       </div>
     </div>
 
-    <div class="chart-row">
+    <div class="chart-row-full">
       <div class="panel chart-lg">
-        <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>월별 처리 추이</div><span class="panel-h-s">완료 건수 · 물류비용(USD)</span></div>
+        <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>월별 처리 추이</div><span class="panel-h-s">완료 건수 · 물류비용(원)</span></div>
         <div class="panel-b">${_chartMonthly(monthly)}</div>
-      </div>
-      <div class="panel">
-        <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>부서별 업무량</div></div>
-        <div class="panel-b">${_chartDeptBar(deptLoad)}</div>
-      </div>
-      <div class="panel">
-        <div class="panel-h"><div class="panel-h-t"><span class="bar"></span>단계별 파이프라인</div><span class="panel-h-s">진행 ${ing}건</span></div>
-        <div class="panel-b">${_chartStepDist(stepDistCalc(),ing)}</div>
       </div>
     </div>
 
     ${urgent.length>0?`<div class="panel"><div class="panel-h"><div class="panel-h-t"><span class="bar" style="background:#d6443a"></span>납기 임박 · 지연 경고</div></div>
       <div class="table-scroll"><table class="erp urgent-table"><thead><tr><th>프로젝트명</th><th>고객사</th><th>수출국</th><th>현재 단계</th><th>납기</th><th>D-Day</th></tr></thead>
-      <tbody>${urgent.sort((a,b)=>dday(a.due)-dday(b.due)).map(p=>{const dd=dday(p.due);return `<tr class="list-row" onclick="openProject(${p.id})"><td data-label="프로젝트명"><b>${p.name}</b></td><td data-label="고객사">${p.customer}</td><td data-label="수출국"><span class="country-tag">${p.country}</span></td><td data-label="현재 단계" style="font-size:12px;color:#3d4759">${projCurStep(p)}</td><td data-label="납기" class="mono">${p.due}</td><td data-label="D-Day"><span class="sbadge" style="background:#fbecea;color:#d6443a">${dd<0?'D+'+(-dd):dd===0?'D-DAY':'D-'+dd}</span></td></tr>`;}).join('')}</tbody></table></div></div>`:''}`;
+      <tbody>${urgent.sort((a,b)=>dday(a.due)-dday(b.due)).map(p=>{const dd=dday(p.due);return `<tr class="list-row" onclick="openProject(${p.id})"><td data-label="프로젝트명"><b>${p.name}</b></td><td data-label="고객사">${p.customer}</td><td data-label="수출국"><span class="country-tag">${p.country}</span></td><td data-label="현재 단계" class="cur-step">${projCurStep(p)}</td><td data-label="납기" class="mono">${p.due}</td><td data-label="D-Day"><span class="sbadge" style="background:#fbecea;color:#d6443a">${dd<0?'D+'+(-dd):dd===0?'D-DAY':'D-'+dd}</span></td></tr>`;}).join('')}</tbody></table></div></div>`:''}`;
 
   // 지도 렌더 (DOM 생성 후)
   setTimeout(()=>renderWorldMap(countryDist),50);
@@ -1669,13 +1696,23 @@ function _chartMonthly(months){
   if(!hasData)return '<div class="chart-empty">완료된 프로젝트가 쌓이면<br>월별 추이가 표시됩니다</div>';
   const maxCount=Math.max(...months.map(m=>m.count),1);
   const maxCostRaw=Math.max(...months.map(m=>m.cost),1);
-  // 눈금을 깔끔한 값으로 (건수: 정수 단위, 금액: 5k 단위)
+  // 눈금을 깔끔한 값으로 (건수: 정수 단위, 금액: 원 단위 - 자릿수에 맞춰 자동)
   const cntTicks=4;
   const cntStep=Math.max(1,Math.ceil(maxCount/cntTicks));
   const cntTop=cntStep*cntTicks;
-  const costStep=Math.max(5000,Math.ceil(maxCostRaw/cntTicks/5000)*5000);
+  const roughStep=maxCostRaw/cntTicks;
+  const mag=Math.pow(10,Math.floor(Math.log10(Math.max(roughStep,1))));
+  const costStep=Math.max(mag,Math.ceil(roughStep/mag)*mag);
   const costTop=costStep*cntTicks;
-  const W=560,H=250,padL=34,padR=44,padB=36,padT=22;
+  const wonLabel=(v)=>{
+    if(v>=100000000)return (v/100000000).toFixed(v%100000000?1:0)+'억';
+    if(v>=10000)return (v/10000).toFixed(v%10000?1:0)+'만';
+    return Math.round(v).toLocaleString();
+  };
+  // 가로: 월 수에 따라 폭이 늘어남 (12개월까지 스크롤 없이 카드가 넓어짐)
+  const cwUnit=90;
+  const padL=46,padR=66,padB=40,padT=28,H=280;
+  const W=Math.max(560,padL+padR+cwUnit*months.length);
   const cw=(W-padL-padR)/months.length;
   const plotH=H-padB-padT, plotW=W-padL-padR;
   const y0=padT+plotH;
@@ -1684,8 +1721,8 @@ function _chartMonthly(months){
   for(let i=0;i<=cntTicks;i++){
     const gy=y0-(i/cntTicks)*plotH;
     grid+=`<line x1="${padL}" y1="${gy}" x2="${padL+plotW}" y2="${gy}" stroke="var(--grid)" stroke-width="1" stroke-dasharray="${i===0?'0':'3 4'}"/>`;
-    yL+=`<text x="${padL-7}" y="${gy+3.5}" text-anchor="end" font-size="9.5" fill="var(--axis)">${i*cntStep}</text>`;
-    yR+=`<text x="${padL+plotW+7}" y="${gy+3.5}" text-anchor="start" font-size="9.5" fill="var(--axisC)">${i*costStep/1000}k</text>`;
+    yL+=`<text x="${padL-8}" y="${gy+4}" text-anchor="end" font-size="11" fill="var(--axis)">${i*cntStep}</text>`;
+    yR+=`<text x="${padL+plotW+8}" y="${gy+4}" text-anchor="start" font-size="11" fill="var(--axisC)">${i===0?'0':wonLabel(i*costStep)}</text>`;
   }
   let bars='',xL='';
   const pts=[];
@@ -1697,17 +1734,17 @@ function _chartMonthly(months){
     if(m.count>0)bars+=`<rect x="${x-bw/2}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="url(#barGrad)" filter="url(#barGlow)"/>`;
     const cy=y0-(m.cost/costTop*plotH);
     pts.push([x,cy,m.cost]);
-    xL+=`<text x="${x}" y="${H-padB+18}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--axis)">${m.label}</text>`;
+    xL+=`<text x="${x}" y="${H-padB+20}" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--axis)">${m.label}</text>`;
   });
   const linePath=_smoothPath(pts.map(p=>[p[0],p[1]]));
   const areaPath=linePath+` L ${pts[pts.length-1][0]} ${y0} L ${pts[0][0]} ${y0} Z`;
   let dots='',costLabels='';
   pts.forEach(p=>{
-    dots+=`<circle cx="${p[0]}" cy="${p[1]}" r="4.5" fill="var(--cbg)" stroke="#f59e42" stroke-width="2.5" filter="url(#dotGlow)"/>`;
-    if(p[2]>0)costLabels+=`<text x="${p[0]}" y="${p[1]-11}" text-anchor="middle" font-size="10" font-weight="800" fill="#f59e42">$${(p[2]/1000).toFixed(1)}k</text>`;
+    dots+=`<circle cx="${p[0]}" cy="${p[1]}" r="5" fill="var(--cbg)" stroke="#f59e42" stroke-width="2.8" filter="url(#dotGlow)"/>`;
+    if(p[2]>0)costLabels+=`<text x="${p[0]}" y="${p[1]-13}" text-anchor="middle" font-size="13.5" font-weight="800" fill="#f59e42" stroke="var(--cbg)" stroke-width="3" paint-order="stroke">₩${wonLabel(p[2])}</text>`;
   });
-  return `<div class="chart-legend-top"><span><span class="lg-box" style="background:linear-gradient(135deg,#38bdf8,#2563eb)"></span>완료 건수</span><span><span class="lg-box" style="background:#f59e42"></span>물류비용</span></div>
-    <div class="chart-scroll"><svg viewBox="0 0 ${W} ${H}" class="monthly-svg" preserveAspectRatio="xMidYMid meet">
+  return `<div class="chart-legend-top"><span><span class="lg-box" style="background:linear-gradient(135deg,#38bdf8,#2563eb)"></span>완료 건수</span><span><span class="lg-box" style="background:#f59e42"></span>물류비용(원)</span></div>
+    <div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" class="monthly-svg" preserveAspectRatio="xMidYMid meet" style="width:100%;height:${H}px">
     <defs>
       <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cc7f8"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
       <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f59e42" stop-opacity="0.25"/><stop offset="1" stop-color="#f59e42" stop-opacity="0"/></linearGradient>
@@ -1721,6 +1758,7 @@ function _chartMonthly(months){
     ${dots}${yL}${yR}${xL}${costLabels}
   </svg></div>`;
 }
+
 function _smoothPath(pts){
   if(pts.length<2)return pts.length?`M ${pts[0][0]} ${pts[0][1]}`:'';
   let d=`M ${pts[0][0]} ${pts[0][1]}`;
@@ -1746,6 +1784,56 @@ function _chartCountryRank(dist){
   });
   html+='</div>';
   return html;
+}
+
+// ── 사이트별 진행 현황 패널 (국가 범례 + 선택 국가 프로젝트 진행상황) ──
+function _siteStatusPanel(countryDist,selCountry){
+  const entries=Object.entries(countryDist).sort((a,b)=>b[1]-a[1]);
+  if(entries.length===0)return '<div class="chart-empty">아직 발송 데이터가 없습니다</div>';
+  const colorMap=buildCountryColors(countryDist);
+  // 상단: 국가 칩 리스트 (클릭 시 아래 상세 갱신)
+  let chips='<div class="site-chips">';
+  entries.forEach(([c,n])=>{
+    const on=selCountry===c?' on':'';
+    chips+=`<span class="site-chip${on}" style="--cc:${colorMap[c]}" onclick="selectSiteCountry('${c.replace(/'/g,"\\'")}')"><span class="site-chip-dot"></span>${c} <b>${n}</b></span>`;
+  });
+  chips+='</div>';
+  // 하단: 상세
+  let detail='';
+  if(!selCountry){
+    detail='<div class="site-hint">위 국가를 선택하면 해당 국가로 발송하는<br>프로젝트들의 진행 현황이 표시됩니다.</div>';
+  }else{
+    const list=projects.filter(p=>p.country===selCountry);
+    if(list.length===0){detail='<div class="site-hint">해당 국가의 프로젝트가 없습니다.</div>';}
+    else{
+      detail='<div class="site-list">';
+      list.forEach(p=>{
+        const st=projStatus(p);
+        const total=p.steps.length;
+        const doneN=p.steps.filter(s=>s.status==='done').length;
+        const pct=Math.round(doneN/total*100);
+        const cur=projCurStep(p);
+        const dd=dday(p.due);
+        const ddText=dd===null?'':(dd<0?'D+'+(-dd):dd===0?'D-DAY':'D-'+dd);
+        const ddCls=dd===null?'':(dd<0?'dd-late':dd<=7?'dd-soon':'dd-ok');
+        const barCol=st==='완료'?'#0d9c5f':'#3b82f6';
+        detail+=`<div class="site-item" onclick="openProject(${p.id})">
+          <div class="site-item-top"><b>${p.name}</b>${ddText?`<span class="site-dd ${ddCls}">${ddText}</span>`:''}</div>
+          <div class="site-item-sub">${p.customer} · ${st==='완료'?'완료':cur}</div>
+          <div class="site-prog"><div class="site-prog-fill" style="width:${pct}%;background:${barCol}"></div></div>
+          <div class="site-prog-txt">${doneN}/${total} 단계 (${pct}%)</div>
+        </div>`;
+      });
+      detail+='</div>';
+    }
+  }
+  return chips+detail;
+}
+function selectSiteCountry(c){
+  const countryDist={};
+  projects.forEach(p=>{if(p.country&&p.country!=='기타')countryDist[p.country]=(countryDist[p.country]||0)+1;});
+  const el=document.getElementById('sitePanel');
+  if(el)el.innerHTML=_siteStatusPanel(countryDist,c);
 }
 
 // ── 세계지도 (밝은 지도 + 나라별 색칠 + 반짝 핀 + 세계 전체 뷰) ──
@@ -1815,15 +1903,10 @@ function renderWorldMap(countryDist){
     const icon=L.divIcon({className:'glow-pin-wrap',html:`<div class="glow-pin" style="width:${size}px;height:${size}px;--pin:${col}"><span class="gp-core"></span><span class="gp-ring"></span><span class="gp-count" style="background:${col}">${cnt}</span></div>`,iconSize:[size,size],iconAnchor:[size/2,size/2]});
     const mk=L.marker(co,{icon}).addTo(map);
     mk.bindPopup(`<div class="map-pop"><b>${country}</b><br>발송 <b style="color:${col}">${cnt}건</b></div>`);
-    mk.on('click',()=>{listFilter.country=country;switchTab('list');});
+    mk.on('click',()=>{try{selectSiteCountry(country);}catch(e){}});
   });
 
-  const leg=document.getElementById('mapLegend');
-  if(leg){
-    if(entries.length===0)leg.innerHTML='<span style="color:#94a6a1;font-size:12px">아직 발송 데이터가 없습니다</span>';
-    else leg.innerHTML=entries.slice(0,12).map(([c,n])=>`<span class="mleg" onclick="listFilter.country='${c}';switchTab('list')"><span class="mleg-dot" style="background:${colorMap[c]};box-shadow:0 0 6px ${colorMap[c]}"></span>${c} <b style="color:${colorMap[c]}">${n}</b></span>`).join('');
-  }
-  setTimeout(()=>{try{map.invalidateSize();map.setView([20,0],1.4);}catch(e){}},200);
+  setTimeout(()=>{try{map.invalidateSize();map.fitWorld({padding:[2,2]});map.setView(map.getCenter(),map.getZoom());}catch(e){try{map.setView([20,0],1.4);}catch(_){}}},200);
 }
 
 // ── 차트: 단계별 분포 (가로 막대) ──
@@ -2183,7 +2266,7 @@ async function renderDevices(){
       const isMe=String(d.deviceId)===String(myId);
       const when=d.boundAt?new Date(d.boundAt).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
       const typeLabel=d.devType==='mobile'?'📱 모바일':'💻 PC';
-      return `<tr><td><b>${d.name}</b>${isMe?' <span style="font-size:10px;color:#2563c9;font-weight:700">(이 기기)</span>':''}</td><td style="font-size:12px">${typeLabel}</td><td>${d.rank||'—'}</td><td>${d.dept||'—'}</td><td class="mono" style="font-size:11.5px;color:#6b817c">${when}</td>
+      return `<tr><td><b>${d.name}</b>${isMe?' <span class="me-badge">(이 기기)</span>':''}</td><td style="font-size:12px">${typeLabel}</td><td>${d.rank||'—'}</td><td>${d.dept||'—'}</td><td class="mono" style="font-size:11.5px;color:#6b817c">${when}</td>
         <td><button class="adm-del" onclick="unbindDeviceRemote('${d.deviceId}','${d.name}')" title="기기 고정 해제"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg> 해제</button></td></tr>`;
     }).join('')}</tbody></table></div>
     <div style="padding:12px 16px;font-size:11.5px;color:#94a6a1;border-top:1px solid var(--line);line-height:1.6">· 한 사람당 <b>PC 1대 + 모바일 1대</b>까지 등록됩니다. 기기를 바꾸려면 기존 기기를 <b>해제</b>해야 새 기기 등록이 가능합니다.<br>· <b>해제</b>하면 그 기기는 다음 접속 시 다시 본인 인증이 필요합니다.</div>`;
@@ -2222,7 +2305,7 @@ function renderGuide(){
 
     <div class="dash-grid">
       <div class="panel"><div class="panel-h"><div class="panel-h-t"><span class="bar"></span>각 메뉴 안내</div></div>
-        <div class="panel-b" style="font-size:13px;line-height:1.7;color:#3d4759">
+        <div class="panel-b guide-para">
           <p style="margin-bottom:10px"><b style="color:#2563c9">프로젝트 목록</b> — 전체 발송 건을 표로 관리. 검색·필터로 원하는 건을 빠르게 찾고, 클릭하면 진행 화면으로 이동합니다.</p>
           <p style="margin-bottom:10px"><b style="color:#2563c9">현황 대시보드</b> — 진행중·완료·납기임박 집계와 단계별/수출국별/부서별 분석 차트를 한눈에 봅니다.</p>
           <p style="margin-bottom:10px"><b style="color:#2563c9">프로젝트 진행</b> — 선택한 프로젝트의 15단계 작업 화면. 점검 항목을 입력하고 단계를 완료합니다.</p>
@@ -2230,7 +2313,7 @@ function renderGuide(){
         </div>
       </div>
       <div class="panel"><div class="panel-h"><div class="panel-h-t"><span class="bar"></span>관리자 기능</div></div>
-        <div class="panel-b" style="font-size:13px;line-height:1.7;color:#3d4759">
+        <div class="panel-b guide-para">
           <p style="margin-bottom:10px">우측 상단 <b>관리자 모드</b>로 전환하면(권한자만) 다음이 가능합니다:</p>
           <p style="margin-bottom:8px">· <b>완료 항목 수정·삭제</b> — 잘못 입력된 항목을 되돌릴 수 있으며, 수정 이력이 별도로 남습니다.</p>
           <p style="margin-bottom:8px">· <b>프로젝트 삭제</b> — 목록에서 프로젝트를 삭제합니다.</p>
