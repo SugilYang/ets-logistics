@@ -884,6 +884,37 @@ table.erp tbody tr:hover{background:#fafcff}
 <div id="devCredit">Developed by 양수길</div>
 
 <script>
+// ===== 앱 버전 & 자동 업데이트 =====
+// 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
+const APP_VERSION='20260702-134004';
+// 편집 중(모달 열림)인지 판단
+function _isEditing(){
+  const m=document.getElementById('modal');
+  return !!(m&&m.classList.contains('show'));
+}
+// 서버의 최신 index.html 버전을 조용히 확인 → 새 버전이고 저장 완료 상태면 자동 새로고침
+async function _checkForUpdate(){
+  try{
+    if(_isEditing())return; // 편집 중이면 보류
+    const res=await fetch('index.html?_t='+Date.now(),{cache:'no-store'});
+    if(!res.ok)return;
+    const txt=await res.text();
+    const m=txt.match(/const APP_VERSION='([^']+)'/);
+    if(m&&m[1]&&m[1]!==APP_VERSION&&m[1]!=='20260702-134004'){
+      // 새 버전 발견 + 편집 중 아님 → 조용히 자동 리로드
+      if(!_isEditing())location.reload(true);
+    }
+  }catch(e){}
+}
+// 탭이 다시 보일 때 / 창이 포커스될 때 확인 (+ 5분마다)
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')_checkForUpdate();});
+window.addEventListener('focus',_checkForUpdate);
+setInterval(_checkForUpdate,5*60*1000);
+// Service Worker 등록 (network-first: 항상 최신 우선)
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+}
+
 // ===== 데이터 정의 =====
 const DEPT_CLASS={"영업":"dept-sales","생산관리":"dept-prod","품질":"dept-mgr","물류":"dept-logi"};
 const PROC_DEPTS=["영업","생산관리","품질","물류"];
