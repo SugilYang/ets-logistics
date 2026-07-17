@@ -915,13 +915,15 @@ table.erp tbody tr:hover{background:#fafcff}
 <script>
 // ===== 앱 버전 & 자동 업데이트 =====
 // 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
-const APP_VERSION='20260717-062224';
+const APP_VERSION='20260717-063620';
 // 편집 중(모달 열림)인지 판단
 function _isEditing(){
   const m=document.getElementById('modal');
   return !!(m&&m.classList.contains('show'));
 }
 // 서버의 최신 index.html 버전을 조용히 확인 → 새 버전이고 저장 완료 상태면 자동 새로고침
+// 무한 리로드 방지: 한 번 리로드하면 "목표 버전"을 기록해두고, 화면이 아직 그 버전(또는 그 이상)으로
+// 안 바뀌었으면(=캐시 때문에 옛 파일이 뜬 것) 재리로드하지 않는다.
 async function _checkForUpdate(){
   try{
     if(_isEditing())return; // 편집 중이면 보류
@@ -929,16 +931,27 @@ async function _checkForUpdate(){
     if(!res.ok)return;
     const txt=await res.text();
     const m=txt.match(/const APP_VERSION='([^']+)'/);
-    if(m&&m[1]&&m[1]!==APP_VERSION&&m[1]!=='20260702-134004'){
-      // 새 버전 발견 + 편집 중 아님 → 조용히 자동 리로드
-      if(!_isEditing())location.reload(true);
-    }
+    if(!m||!m[1])return;
+    const serverVer=m[1];
+    if(serverVer===APP_VERSION)return; // 이미 최신 → 아무것도 안 함
+    // 서버가 더 새 버전. 그런데 방금 이 버전으로 리로드를 시도했다면(=캐시로 옛 파일이 다시 뜬 것)
+    // 무한 루프가 되므로 재리로드하지 않는다.
+    let tried='';
+    try{tried=sessionStorage.getItem('ets_update_target')||'';}catch(e){}
+    if(tried===serverVer)return; // 이미 이 버전으로 리로드 시도함 → 캐시 문제, 더 안 함
+    try{sessionStorage.setItem('ets_update_target',serverVer);}catch(e){}
+    if(!_isEditing())location.reload();
   }catch(e){}
 }
 // 탭이 다시 보일 때 / 창이 포커스될 때 확인 (+ 5분마다)
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')_checkForUpdate();});
 window.addEventListener('focus',_checkForUpdate);
 setInterval(_checkForUpdate,5*60*1000);
+// 정상적으로 최신 버전이 떴으면 기록 초기화 (다음 새 배포를 위해)
+try{
+  const tgt=sessionStorage.getItem('ets_update_target');
+  if(tgt&&tgt===APP_VERSION)sessionStorage.removeItem('ets_update_target');
+}catch(e){}
 // Service Worker 등록 (network-first: 항상 최신 우선)
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
@@ -1162,7 +1175,7 @@ async function callBackendPost(params){
 
 // ===== 조직도 =====
 // 우리 단계 부서 → 실제 다우 부서명 매핑 (백엔드 orgtree의 dept명과 맞춤)
-const DEPT_MAP={"영업":["영업 GR"],"생산관리":["생산관리"],"품질":["품질"],"물류":["물류"],"설계":["설계1","설계2","설계 GR","설계팀"],"구매":["구매"]};
+const DEPT_MAP={"영업":["영업 GR"],"생산관리":["생산관리"],"품질":["품질"],"물류":["물류"],"설계":["설계1","설계2","설계 GR"],"구매":["구매"]};
 let orgTreeCache=null;  // 백엔드에서 받은 조직도 [{dept,count,members:[{name,rank,empNo}]}]
 let orgTreeAt=0;        // 마지막 성공 조회 시각(ms)
 
@@ -1193,28 +1206,40 @@ const EXTRA_MEMBERS={"생산관리":[{name:'이근창',rank:'BM',_findIn:'생산
 function findOrgDept(ourDept){
   if(!orgTreeCache)return null;
   const names=DEPT_MAP[ourDept]||[ourDept];
-  let base=orgTreeCache.find(d=>names.includes(d.dept))||orgTreeCache.find(d=>d.dept.includes(ourDept));
-  if(!base)return null;
+  // DEPT_MAP에 매칭되는 모든 부서를 합침 (예: 설계 = 설계1 + 설계2 + 설계 GR 전원)
+  let bases=orgTreeCache.filter(d=>names.includes(d.dept));
+  if(bases.length===0){
+    const one=orgTreeCache.find(d=>d.dept.includes(ourDept));
+    if(one)bases=[one];
+  }
+  if(bases.length===0)return null;
+  // 멤버 병합 (중복 사번/이름 제거)
+  const members=[];const seen=new Set();
+  bases.forEach(b=>{
+    (b.members||[]).forEach(m=>{
+      const key=(m.empNo&&String(m.empNo))||('name:'+m.name);
+      if(seen.has(key))return;
+      seen.add(key);
+      members.push({name:m.name,rank:m.rank||'',empNo:m.empNo||''});
+    });
+  });
+  // 표시용 부서명: DEPT_MAP 여러 개면 우리 부서명(설계 등), 하나면 실제 부서명
+  const displayDept=names.length>1?ourDept:(bases[0].dept||ourDept);
   // 수동 추가 멤버 합치기 (중복 제외)
   const extras=EXTRA_MEMBERS[ourDept];
   if(extras&&extras.length){
-    const members=base.members.slice();
     extras.forEach(ex=>{
-      if(members.some(m=>m.name===ex.name))return; // 이미 있으면 skip
-      // 실제 조직도에서 그 사람 사번 찾기
+      if(members.some(m=>m.name===ex.name))return;
       let empNo='';
       if(ex._findIn){
         const src=orgTreeCache.find(d=>d.dept===ex._findIn);
         if(src){const f=src.members.find(m=>m.name===ex.name);if(f)empNo=f.empNo;}
       }
-      if(!empNo){ // 전체에서 이름으로 찾기
-        for(const d of orgTreeCache){const f=d.members.find(m=>m.name===ex.name);if(f){empNo=f.empNo;break;}}
-      }
+      if(!empNo){for(const d of orgTreeCache){const f=d.members.find(m=>m.name===ex.name);if(f){empNo=f.empNo;break;}}}
       members.push({name:ex.name,rank:ex.rank||'',empNo:empNo});
     });
-    return {dept:base.dept,count:members.length,members:members};
   }
-  return base;
+  return {dept:displayDept,count:members.length,members:members};
 }
 
 // ===== 담당자 유효성 대조 (퇴사/부서이동 감지) =====
