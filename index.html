@@ -727,6 +727,27 @@ table.erp tbody tr:hover{background:#fafcff}
   .page{padding:14px}
   .stats{grid-template-columns:1fr 1fr}
 }
+/* ===== 부서별 분리 입력 칸 ===== */
+.dgrid{display:flex;flex-direction:column;gap:7px;width:100%}
+.dcell{border:1px solid var(--line-2);border-radius:7px;padding:8px 9px;background:#fff}
+.dcell.fl{border-color:#bfe0cd;background:#f7fdfa}
+.dcell.sk{border-color:var(--line-3);background:#f4f5f7}
+.dcell-h{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.dcell-st{font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:9px}
+.dcell-st.ok{background:var(--done-l);color:var(--done)}
+.dcell-st.sk{background:#e9ebef;color:#78808f}
+.dcell-st.no{background:#f0f2f5;color:var(--muted)}
+.dskip-btn{margin-top:6px;font-size:10.5px;padding:3px 10px;border:1px solid var(--line-3);background:#fff;color:var(--ink-2);border-radius:5px;cursor:pointer}
+.dskip-btn:hover:not(:disabled){background:#f5f7fa}
+.dskip-btn:disabled{opacity:.4;cursor:not-allowed}
+.dskip-edit{margin-top:7px}
+.dskip-box{background:#eef0f3;border-left:3px solid var(--wait);border-radius:5px;padding:6px 9px}
+.dskip-h{font-size:10px;font-weight:800;color:#6b7684;letter-spacing:.4px}
+.dskip-r{font-size:11.5px;color:var(--ink-2);margin-top:2px;line-height:1.45}
+.dskip-m{font-size:10px;color:var(--muted)}
+.dskip-undo{font-size:9.5px;padding:1px 7px;border:1px solid var(--line-3);background:#fff;border-radius:4px;cursor:pointer;margin-left:5px}
+.snode.par .sn-num:after{content:' · 순서무관';color:var(--teal);font-weight:700}
+@media(min-width:900px){.dgrid{flex-direction:row}.dcell{flex:1;min-width:0}}
 </style>
 </head>
 <body>
@@ -920,7 +941,7 @@ table.erp tbody tr:hover{background:#fafcff}
 <script>
 // ===== 앱 버전 & 자동 업데이트 =====
 // 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
-const APP_VERSION='20260717-070156';
+const APP_VERSION='20260720-101223';
 // 편집 중(모달 열림)인지 판단
 function _isEditing(){
   const m=document.getElementById('modal');
@@ -1026,8 +1047,8 @@ const STEP_TEMPLATE=[
     {type:"check",item:"대체품 검토",sub:"Equivalent 여부",crit:"고객 승인"},
   ]},
   {id:4,name:"재고 확인",depts:["설계","구매"],fields:[
-    {type:"check",item:"재고 조회",sub:"재고 확인",crit:"ERP 기준 조회"},
-    {type:"text",item:"조회 결과",sub:"확보/부족 품목",crit:"품번별 수량 기입",ph:"예: ABC-100 부족 200EA"},
+    {type:"check",item:"재고 조회",sub:"재고 확인",crit:"ERP 기준 조회",depts:["설계","구매"]},
+    {type:"text",item:"조회 결과",sub:"확보/부족 품목",crit:"품번별 수량 기입",ph:"예: ABC-100 부족 200EA",depts:["설계","구매"]},
   ]},
   {id:5,name:"구매",depts:["구매"],fields:[
     {type:"check",item:"소재 발주",sub:"Steel / AL / SUS 등",crit:"PO 발행"},
@@ -1455,10 +1476,26 @@ function openDeepLink(){
 }
 
 // 시트에서 데이터 로딩 (비었고 데모 미시드 시 데모 1회 저장)
+// 구버전 데이터 보정: 다부서 필드에 dvals/dskip 없으면 만들어 줌
+function migrateProject(p){
+  if(!p||!p.steps)return p;
+  p.steps.forEach(s=>{
+    (s.fields||[]).forEach(f=>{
+      if(!f.dvals)f.dvals={};
+      if(!f.dskip)f.dskip={};
+      // 기존 단일값이 있는데 부서별 값이 비어 있으면 첫 담당 부서로 이관
+      if(isMultiField(s,f)&&Object.keys(f.dvals).length===0&&!Object.keys(f.dskip).length&&f.done){
+        const dp=fieldDepts(s,f)[0];
+        f.dvals[dp]={val:f.val||'',done:true,by:f.by||'',date:f.date||''};
+      }
+    });
+  });
+  return p;
+}
 async function loadDataIntoApp(){
   const cloud=await loadProjectsFromSheet();
   if(cloud&&cloud.length>0){
-    projects=cloud;
+    projects=cloud.map(migrateProject);
     seq=Math.max(...projects.map(p=>p.id||0))+1;
   }else if(cloud&&cloud.length===0){
     // 시트 연결됨 + 비어있음 → 데모를 아직 안 넣었으면 1회 데모 시드+저장
@@ -1676,7 +1713,7 @@ function renderSidebar(){
     const tmpl=STEP_TEMPLATE.find(t=>t.id===s.id);
     const deps=(tmpl&&tmpl.depts&&tmpl.depts.length)?tmpl.depts:[s.dept];
     const deptBadges=deps.map(dp=>`<span class="sn-dept ${deptClass(dp)}">${dp}</span>`).join('');
-    return `<div class="snode ${selectedStep===s.id?'on':''} ${locked?'lock':''} ${skipped?'skip':''}" ${(locked||skipped)?(skipped&&isAdmin?`onclick="selStep(${s.id})"`:''):`onclick="selStep(${s.id})"`}>
+    return `<div class="snode ${selectedStep===s.id?'on':''} ${locked?'lock':''} ${skipped?'skip':''} ${isParallel(s.id)?'par':''}" ${(locked||skipped)?(skipped&&isAdmin?`onclick="selStep(${s.id})"`:''):`onclick="selStep(${s.id})"`}>
       <div class="sn-st ${s.status}">${s.status==='done'?IC.check:s.status==='active'?pad(s.id):skipped?'—':''}</div>
       <div class="sn-body"><div class="sn-num">STEP ${pad(s.id)}${skipped?' · 건너뜀':''}</div><div class="sn-name">${s.name}</div></div>
       <span class="sn-dept-wrap">${deptBadges}</span>
@@ -2279,13 +2316,200 @@ function renderProjectPage(){
         <tbody>${s.fields.map((f,fi)=>renderField(s,f,fi,canEdit)).join('')}</tbody>
       </table></div>
       <div class="step-foot">
-        <div class="step-foot-info">${s.status==='done'?'<b>완료된 단계</b>입니다.':s.status==='active'?(canEdit?'모든 항목 입력 시 <b>다음 단계</b>로 자동 전환되며, <b>부서가 바뀔 때</b> 다음 담당에게 알림이 발송됩니다.':'담당자만 처리할 수 있는 단계입니다.'):'이전 단계 완료 후 진행 가능합니다.'}</div>
+        <div class="step-foot-info">${isParallel(s.id)?'<b>STEP 09~13</b>은 물류 업무로 <b>순서에 상관없이</b> 작성할 수 있습니다. 09~13이 <b>모두 완료</b>되어야 STEP 14로 넘어갑니다.<br>':''}${s.status==='done'?'<b>완료된 단계</b>입니다.':s.status==='active'?(canEdit?'모든 항목 입력 시 <b>다음 단계</b>로 자동 전환되며, <b>부서가 바뀔 때</b> 다음 담당에게 알림이 발송됩니다.':'담당자만 처리할 수 있는 단계입니다.'):'이전 단계 완료 후 진행 가능합니다.'}</div>
         ${s.status==='active'&&canEdit?`<button class="btn btn-tel" onclick="completeStep(${s.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>단계 완료 처리</button>`:''}
       </div>
     </div>`;
 }
 
+// ===== 부서별 분리 입력 (다부서 필드) =====
+// 병렬 그룹: 9~13단계는 물류 업무로 순서 무관
+const PARALLEL_GROUP=[9,10,11,12,13];
+function isParallel(id){return PARALLEL_GROUP.indexOf(id)>=0;}
+// 필드의 담당 부서 목록 (2개 이상이면 부서별 칸 분리)
+function fieldDepts(s,f){
+  if(f.depts&&f.depts.length)return f.depts;
+  const tmpl=STEP_TEMPLATE.find(t=>t.id===s.id);
+  const d=(tmpl&&tmpl.depts&&tmpl.depts.length)?tmpl.depts:[s.dept];
+  return d;
+}
+function isMultiField(s,f){return fieldDepts(s,f).length>1;}
+// 부서별 값/스킵 저장소 확보
+function fieldDS(f){
+  if(!f.dvals)f.dvals={};
+  if(!f.dskip)f.dskip={};
+  return f;
+}
+// 해당 부서 칸이 값 입력 완료인지
+function deptFilled(f,dp){
+  fieldDS(f);
+  const v=f.dvals[dp];
+  if(!v)return false;
+  if(f.type==='check')return v.done===true;
+  return !!(v.val&&String(v.val).trim());
+}
+// 해당 부서 칸이 스킵 처리인지
+function deptSkipped(f,dp){fieldDS(f);const k=f.dskip[dp];return !!(k&&k.reason);}
+// 해당 부서 칸이 처리 완료(입력 또는 스킵)인지
+function deptSettled(f,dp){return deptFilled(f,dp)||deptSkipped(f,dp);}
+// 스킵 가능 여부: 나머지 부서 중 최소 1곳은 반드시 작성해야 함
+//  · 다른 부서가 이미 스킵했으면 → 불가
+//  · 다른 부서가 작성 완료했으면 → 가능
+function canSkipDept(s,f,dp){
+  const ds=fieldDepts(s,f);
+  if(ds.length<2)return false;
+  const others=ds.filter(x=>x!==dp);
+  if(others.some(x=>deptSkipped(f,x)))return false;   // 이미 다른 부서가 스킵 → 전부 스킵 금지
+  return true;
+}
+// 다부서 필드 전체 완료 여부 (모든 부서 칸이 입력 또는 스킵 + 최소 1곳 실제 입력)
+function multiFieldDone(s,f){
+  const ds=fieldDepts(s,f);
+  if(!ds.every(dp=>deptSettled(f,dp)))return false;
+  return ds.some(dp=>deptFilled(f,dp));
+}
+// 다부서 필드 상태를 f.done/f.val에 반영 (기존 로직·통계 호환)
+function syncMultiField(s,f){
+  const ds=fieldDepts(s,f);
+  f.done=multiFieldDone(s,f);
+  const filled=ds.filter(dp=>deptFilled(f,dp));
+  if(f.type!=='check'){
+    f.val=filled.length?String(f.dvals[filled[0]].val):'';
+  }
+  if(filled.length){
+    const last=f.dvals[filled[filled.length-1]];
+    f.by=last.by||'';f.date=last.date||'';
+  }else{f.by='';f.date='';}
+}
+// 현재 사용자가 이 부서 칸을 쓸 수 있는지
+function canEditDept(dp){
+  if(isAdmin||isSuperUser(currentUser))return true;
+  if(isViewMode)return false;
+  const myDept=((currentUser||{}).dept||'').trim();
+  if(!myDept)return false;
+  const allowed=DEPT_MAP[dp]||[dp];
+  return allowed.some(n=>myDept===n)||myDept===dp||myDept.startsWith(dp);
+}
+
+// 부서 칸 값 입력
+function setDeptField(sid,fi,dp,val){
+  if(viewGuard())return;
+  const p=curProj();const s=p.steps.find(x=>x.id===sid);const f=fieldDS(s.fields[fi]);
+  if(!canEditStep(p,s)){toast(`이 단계는 담당자(${assignLabel(p,s)})만 입력할 수 있습니다`);renderProjectPage();return;}
+  if(!canEditDept(dp)){toast(`「${dp}」 칸은 ${dp} 담당자만 입력할 수 있습니다`);renderProjectPage();return;}
+  if(deptSkipped(f,dp)){toast('스킵된 칸입니다. 스킵을 먼저 해제하세요');renderProjectPage();return;}
+  if(val){f.dvals[dp]={val:val,done:true,by:userLabel(currentUser),date:now()};}
+  else{delete f.dvals[dp];}
+  syncMultiField(s,f);
+  recalcStepStatus(p,sid);
+  saveProjectToSheet(p);
+  renderProjectPage();renderSidebar();
+}
+// 부서 칸 체크박스 토글
+function toggleDeptField(sid,fi,dp){
+  if(viewGuard())return;
+  const p=curProj();const s=p.steps.find(x=>x.id===sid);const f=fieldDS(s.fields[fi]);
+  if(!canEditStep(p,s)){toast(`이 단계는 담당자(${assignLabel(p,s)})만 입력할 수 있습니다`);return;}
+  if(!canEditDept(dp)){toast(`「${dp}」 칸은 ${dp} 담당자만 입력할 수 있습니다`);return;}
+  if(deptSkipped(f,dp)){toast('스킵된 칸입니다. 스킵을 먼저 해제하세요');return;}
+  if(deptFilled(f,dp))delete f.dvals[dp];
+  else f.dvals[dp]={val:'',done:true,by:userLabel(currentUser),date:now()};
+  syncMultiField(s,f);
+  recalcStepStatus(p,sid);
+  saveProjectToSheet(p);
+  renderProjectPage();renderSidebar();
+}
+// 스킵 사유 입력창 열기
+function openSkipDept(sid,fi,dp){
+  const p=curProj();const s=p.steps.find(x=>x.id===sid);const f=fieldDS(s.fields[fi]);
+  if(!canEditDept(dp)){toast(`「${dp}」 칸은 ${dp} 담당자만 처리할 수 있습니다`);return;}
+  if(!canSkipDept(s,f,dp)){toast('다른 부서가 이미 스킵했습니다. 최소 한 부서는 작성해야 합니다');return;}
+  f._skipOpen=f._skipOpen||{};f._skipOpen[dp]=true;
+  renderProjectPage();
+}
+function cancelSkipDept(sid,fi,dp){
+  const p=curProj();const s=p.steps.find(x=>x.id===sid);const f=fieldDS(s.fields[fi]);
+  if(f._skipOpen)delete f._skipOpen[dp];
+  renderProjectPage();
+}
+// 스킵 확정 (사유 필수)
+function confirmSkipDept(sid,fi,dp){
+  if(viewGuard())return;
+  const p=curProj();const s=p.steps.find(x=>x.id===sid);const f=fieldDS(s.fields[fi]);
+  const el=document.getElementById(`skr_${sid}_${fi}_${dp}`);
+  const reason=el?el.value.trim():'';
+  if(!reason){toast('스킵 사유를 입력해야 합니다');return;}
+  if(!canSkipDept(s,f,dp)){toast('다른 부서가 이미 스킵했습니다. 최소 한 부서는 작성해야 합니다');return;}
+  delete f.dvals[dp];
+  f.dskip[dp]={reason:reason,by:userLabel(currentUser),date:now()};
+  if(f._skipOpen)delete f._skipOpen[dp];
+  p.history.unshift({stage:`STEP ${pad(s.id)} "${f.item}" ${dp} 스킵`,meta:`처리 ${userLabel(currentUser)} · 사유: ${reason}`,time:today(),done:false});
+  syncMultiField(s,f);
+  recalcStepStatus(p,sid);
+  saveProjectToSheet(p);
+  toast(`「${dp}」 스킵 처리되었습니다`);
+  renderProjectPage();renderSidebar();
+}
+// 스킵 해제
+function unskipDept(sid,fi,dp){
+  if(viewGuard())return;
+  const p=curProj();const s=p.steps.find(x=>x.id===sid);const f=fieldDS(s.fields[fi]);
+  if(!canEditDept(dp)&&!isAdmin){toast(`「${dp}」 칸은 ${dp} 담당자만 처리할 수 있습니다`);return;}
+  delete f.dskip[dp];
+  p.history.unshift({stage:`STEP ${pad(s.id)} "${f.item}" ${dp} 스킵 해제`,meta:`처리 ${userLabel(currentUser)}`,time:today(),done:false});
+  syncMultiField(s,f);
+  recalcStepStatus(p,sid);
+  saveProjectToSheet(p);
+  renderProjectPage();renderSidebar();
+}
+
+// 다부서 필드 렌더 (부서별 칸 분리)
+function renderMultiField(s,f,fi,canEdit){
+  fieldDS(f);
+  const ds=fieldDepts(s,f);
+  const cells=ds.map(dp=>{
+    const filled=deptFilled(f,dp);
+    const skipped=deptSkipped(f,dp);
+    const mine=canEditDept(dp);
+    const editable=canEdit&&mine&&!skipped;
+    const v=f.dvals[dp]||{};
+    let inp='';
+    if(f.type==='check'){
+      const click=editable?`onclick="toggleDeptField(${s.id},${fi},'${dp}')"`:'';
+      inp=`<div class="erp-chk ${filled?'on':''} ${editable?'':'lock'}" ${click} style="flex:none">${filled?IC.check:''}</div><span style="font-size:11.5px;color:var(--muted)">${filled?'확인 완료':'미확인'}</span>`;
+    }else if(f.type==='text'){
+      inp=`<input class="erp-inp" placeholder="${f.ph||''}" value="${v.val||''}" ${editable?'':'disabled'} onchange="setDeptField(${s.id},${fi},'${dp}',this.value)">`;
+    }else if(f.type==='drop'){
+      inp=`<select class="erp-sel" ${editable?'':'disabled'} onchange="setDeptField(${s.id},${fi},'${dp}',this.value)"><option value="">— 선택 —</option>${(f.opts||[]).map(o=>`<option ${v.val===o?'selected':''}>${o}</option>`).join('')}</select>`;
+    }else if(f.type==='date'){
+      inp=`<input type="date" class="erp-inp" value="${v.val||''}" ${editable?'':'disabled'} onchange="setDeptField(${s.id},${fi},'${dp}',this.value)" style="max-width:160px">`;
+    }
+    // 스킵 영역
+    let skipArea='';
+    if(skipped){
+      const k=f.dskip[dp];
+      skipArea=`<div class="dskip-box"><div class="dskip-h">건너뜀</div><div class="dskip-r">${k.reason}</div><div class="dskip-m">${k.by||''} ${k.date||''}${(canEdit&&(mine||isAdmin))?` <button class="dskip-undo" onclick="unskipDept(${s.id},${fi},'${dp}')">해제</button>`:''}</div></div>`;
+    }else if(f._skipOpen&&f._skipOpen[dp]){
+      skipArea=`<div class="dskip-edit"><input id="skr_${s.id}_${fi}_${dp}" class="erp-inp" placeholder="스킵 사유를 입력하세요 (필수)"><div style="display:flex;gap:5px;margin-top:5px"><button class="btn btn-pri" style="font-size:11px;padding:4px 11px" onclick="confirmSkipDept(${s.id},${fi},'${dp}')">스킵 확정</button><button class="btn btn-gho" style="font-size:11px;padding:4px 11px" onclick="cancelSkipDept(${s.id},${fi},'${dp}')">취소</button></div></div>`;
+    }else if(canEdit&&mine&&!filled){
+      const allow=canSkipDept(s,f,dp);
+      skipArea=`<button class="dskip-btn" ${allow?`onclick="openSkipDept(${s.id},${fi},'${dp}')"`:'disabled title="다른 부서가 이미 스킵했습니다. 최소 한 부서는 작성해야 합니다"'}>스킵</button>`;
+    }
+    const rec=filled?`<div class="dskip-m" style="margin-top:4px">${v.by||'—'} ${v.date||''}</div>`:'';
+    return `<div class="dcell ${skipped?'sk':''} ${filled?'fl':''}">
+      <div class="dcell-h"><span class="sn-dept ${deptClass(dp)}" style="font-size:9px;padding:2px 7px">${dp}</span>${filled?'<span class="dcell-st ok">입력완료</span>':skipped?'<span class="dcell-st sk">스킵</span>':'<span class="dcell-st no">대기</span>'}</div>
+      <div class="dcell-b" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${skipped?'':inp}</div>
+      ${rec}${skipArea}
+    </div>`;
+  }).join('');
+  const badges=`<span style="display:inline-flex;gap:3px;margin-left:7px;vertical-align:middle">${ds.map(dp=>`<span class="sn-dept ${deptClass(dp)}" style="font-size:8.5px;padding:1px 5px">${dp}</span>`).join('')}</span>`;
+  return `<tr><td data-label="점검 항목"><div><div class="ci-name">${f.item}${badges}</div><div class="ci-sub">${f.sub}</div></div></td>
+    <td data-label="기준/확인사항"><span style="font-size:11.5px;color:#8a93a5">${f.crit}</span></td>
+    <td data-label="입력 / 처리기록"><div class="dgrid">${cells}</div></td></tr>`;
+}
+
 function renderField(s,f,fi,canEdit){
+  if(isMultiField(s,f))return renderMultiField(s,f,fi,canEdit);
   const locked=f.done&&!isAdmin;
   // 이 단계가 복수 부서면 항목별 담당 뱃지 표시
   const tmpl=STEP_TEMPLATE.find(t=>t.id===s.id);
@@ -2322,11 +2546,15 @@ function renderField(s,f,fi,canEdit){
 function recalcStepStatus(p,changedStepId){
   const s=p.steps.find(x=>x.id===changedStepId);
   if(!s)return;
-  const allDone=s.fields.every(f=>f.done);
+  const allDone=s.fields.every(f=>isMultiField(s,f)?multiFieldDone(s,f):f.done);
   // 완료였는데 항목이 비면 → 이 단계를 다시 활성화, 이후 전부 대기
   if(s.status==='done'&&!allDone){
     s.status='active';
-    p.steps.forEach(x=>{if(x.id>changedStepId)x.status='wait';});
+    p.steps.forEach(x=>{
+      if(x.id<=changedStepId)return;
+      if(isParallel(changedStepId)&&isParallel(x.id))return; // 병렬 그룹 형제는 유지
+      if(x.status!=='skipped')x.status='wait';
+    });
     selectedStep=changedStepId;
     p.history.unshift({stage:`STEP ${pad(s.id)} ${s.name} 재개`,meta:`관리자 수정으로 단계가 다시 진행 상태로 전환됨`,time:today(),done:false});
   }
@@ -2375,19 +2603,39 @@ function completeStep(sid){
   if(viewGuard())return;
   const p=curProj();const s=p.steps.find(x=>x.id===sid);
   if(!canEditStep(p,s)){toast(`이 단계는 담당자(${assignLabel(p,s)})만 완료 처리할 수 있습니다`);return;}
-  if(!s.fields.every(f=>f.done)){toast('모든 점검 항목을 입력해야 완료할 수 있습니다');return;}
+  if(!s.fields.every(f=>isMultiField(s,f)?multiFieldDone(s,f):f.done)){toast('모든 점검 항목을 입력해야 완료할 수 있습니다');return;}
   // 다음 단계: 패스(skipped)된 단계는 건너뛰고 그 다음 진행 단계를 찾음
-  const nx=p.steps.filter(x=>x.id>sid&&x.status!=='skipped').sort((a,b)=>a.id-b.id)[0];
+  //  · 9~13(물류)은 병렬 그룹 — 그룹 전부 완료돼야 14로 넘어감
+  let nx;
+  if(isParallel(sid)){
+    const rest=p.steps.filter(x=>isParallel(x.id)&&x.id!==sid&&x.status!=='skipped'&&x.status!=='done');
+    nx=rest.length?null:p.steps.filter(x=>x.id>13&&x.status!=='skipped').sort((a,b)=>a.id-b.id)[0];
+  }else{
+    nx=p.steps.filter(x=>x.id>sid&&x.status!=='skipped').sort((a,b)=>a.id-b.id)[0];
+  }
+  // 8단계 완료 시 9~13을 동시에 열기
+  const openGroup=(nx&&isParallel(nx.id));
 
   // 다음 단계의 지정된 담당 (부서 전체 또는 개인)
   let assign=null;
   if(nx&&p.stepAssign&&p.stepAssign[nx.id]){assign=p.stepAssign[nx.id];}
 
-  showTransition(`STEP ${pad(sid)} 완료`, nx?`다음 단계(${nx.name})로 이동합니다`:'모든 단계가 완료되었습니다',async()=>{
+  const remainParallel=isParallel(sid)&&!nx;
+  const subTxt=nx?(openGroup?'STEP 09~13(물류)이 동시에 열립니다':`다음 단계(${nx.name})로 이동합니다`):(remainParallel?'STEP 09~13 중 남은 단계를 계속 진행하세요':'모든 단계가 완료되었습니다');
+  showTransition(`STEP ${pad(sid)} 완료`, subTxt,async()=>{
     s.status='done';
     p.history.unshift({stage:`STEP ${pad(s.id)} ${s.name} 완료`,meta:`담당 ${userLabel(currentUser)} · ${s.dept}`,time:today(),done:true});
-    if(nx){
-      nx.status='active';selectedStep=nx.id;
+    if(remainParallel){
+      // 병렬 그룹 내 다른 단계가 남음 → 남은 단계 중 하나로 이동
+      const left=p.steps.filter(x=>isParallel(x.id)&&x.status!=='skipped'&&x.status!=='done').sort((a,b)=>a.id-b.id);
+      left.forEach(x=>{x.status='active';});
+      if(left.length)selectedStep=left[0].id;
+      p.history.unshift({stage:`STEP 09~13 진행 중`,meta:`남은 단계 ${left.length}건 · 순서 무관 처리 가능`,time:today(),done:false});
+    }else if(nx){
+      if(openGroup){
+        p.steps.forEach(x=>{if(isParallel(x.id)&&x.status!=='skipped')x.status='active';});
+      }else{nx.status='active';}
+      selectedStep=nx.id;
       const assignTxt=assign?(assign.type==='dept'?assign.name+' 부서 전체':assign.persons?assign.persons.map(x=>x.name).join(', '):assign.name):nx.dept;
       // 부서가 바뀔 때만 알림 발송 (같은 부서 내 단계 이동은 메일 안 보냄)
       const deptChanged=s.dept!==nx.dept;
@@ -2864,7 +3112,7 @@ function buildProject(meta){
     if(skipped)status='skipped';
     else if(!firstActiveSet){status='active';firstActiveSet=true;}
     else status='wait';
-    return {id:t.id,name:t.name,dept:t.dept,status,fields:t.fields.map(f=>({...f,done:false,val:'',by:'',date:''}))};
+    return {id:t.id,name:t.name,dept:t.dept,status,fields:t.fields.map(f=>({...f,done:false,val:'',by:'',date:'',dvals:{},dskip:{}}))};
   });
   return {
     id:seq++, ...m, stepAssign, docNo:docNo(),
@@ -2899,12 +3147,20 @@ function seedSampleData(){
         if(f.type==='date'&&!f.val)f.val='2026-07-01';
         if(f.item==='최종 운송비'&&freight)f.val=String(freight);
         if(f.item==='운송 상태')f.val='배송 완료';
+        // 다부서 항목은 부서 칸에도 채워 넣음 (첫 부서 입력 / 두 번째 부서 입력)
+        if(isMultiField(s,f)){
+          fieldDS(f);
+          fieldDepts(s,f).forEach(dp=>{f.dvals[dp]={val:f.val||'',done:true,by:f.by,date:f.date};});
+        }
       });
       s.status='done';
       // 완료 프로젝트는 완료월 기록 (월별 추이용)
       const htime=(i===advanceTo-1&&advanceTo>=15&&compDate)?compDate:meta.created;
       p.history.unshift({stage:`STEP ${pad(s.id)} ${s.name} 완료`,meta:`담당 ${meta.sampleBy||'정유진 과장'} · ${s.dept}`,time:htime,done:true});
-      if(p.steps[i+1]){p.steps[i+1].status='active';}
+      if(p.steps[i+1]){
+        if(isParallel(p.steps[i+1].id))p.steps.forEach(x=>{if(isParallel(x.id)&&x.status!=='done')x.status='active';});
+        else p.steps[i+1].status='active';
+      }
     }
     return p;
   };
