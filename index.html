@@ -729,25 +729,40 @@ table.erp tbody tr:hover{background:#fafcff}
 }
 /* ===== 부서별 분리 입력 칸 ===== */
 .dgrid{display:flex;flex-direction:column;gap:7px;width:100%}
-.dcell{border:1px solid var(--line-2);border-radius:7px;padding:8px 9px;background:#fff}
-.dcell.fl{border-color:#bfe0cd;background:#f7fdfa}
-.dcell.sk{border-color:var(--line-3);background:#f4f5f7}
+.dcell{border:1px solid var(--line-2);border-radius:7px;padding:8px 9px;background:var(--bg)}
+.dcell.fl{border-color:var(--done);background:var(--done-l)}
+.dcell.sk{border-color:var(--line-3);background:transparent;opacity:.85}
 .dcell-h{display:flex;align-items:center;gap:6px;margin-bottom:6px}
 .dcell-st{font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:9px}
 .dcell-st.ok{background:var(--done-l);color:var(--done)}
-.dcell-st.sk{background:#e9ebef;color:#78808f}
-.dcell-st.no{background:#f0f2f5;color:var(--muted)}
-.dskip-btn{margin-top:6px;font-size:10.5px;padding:3px 10px;border:1px solid var(--line-3);background:#fff;color:var(--ink-2);border-radius:5px;cursor:pointer}
-.dskip-btn:hover:not(:disabled){background:#f5f7fa}
+.dcell-st.sk{background:var(--line);color:var(--muted)}
+.dcell-st.no{background:var(--line);color:var(--muted)}
+.dskip-btn{margin-top:6px;font-size:10.5px;padding:3px 10px;border:1px solid var(--line-3);background:transparent;color:var(--muted);border-radius:5px;cursor:pointer}
+.dskip-btn:hover:not(:disabled){background:var(--line);color:var(--ink-2)}
 .dskip-btn:disabled{opacity:.4;cursor:not-allowed}
 .dskip-edit{margin-top:7px}
-.dskip-box{background:#eef0f3;border-left:3px solid var(--wait);border-radius:5px;padding:6px 9px}
-.dskip-h{font-size:10px;font-weight:800;color:#6b7684;letter-spacing:.4px}
+.dskip-edit .erp-inp{color:var(--ink)}
+.dskip-box{background:var(--line);border-left:3px solid var(--wait);border-radius:5px;padding:6px 9px}
+.dskip-h{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.4px}
 .dskip-r{font-size:11.5px;color:var(--ink-2);margin-top:2px;line-height:1.45}
 .dskip-m{font-size:10px;color:var(--muted)}
-.dskip-undo{font-size:9.5px;padding:1px 7px;border:1px solid var(--line-3);background:#fff;border-radius:4px;cursor:pointer;margin-left:5px}
+.dskip-undo{font-size:9.5px;padding:1px 7px;border:1px solid var(--line-3);background:transparent;color:var(--ink-2);border-radius:4px;cursor:pointer;margin-left:5px}
 .snode.par .sn-num:after{content:' · 순서무관';color:var(--teal);font-weight:700}
 @media(min-width:900px){.dgrid{flex-direction:row}.dcell{flex:1;min-width:0}}
+/* ---- 다크 모드 대응 ---- */
+#app.dark .dcell{background:rgba(255,255,255,.03);border-color:rgba(120,180,255,.15)}
+#app.dark .dcell.fl{background:rgba(13,156,95,.12);border-color:rgba(13,156,95,.4)}
+#app.dark .dcell.sk{background:rgba(255,255,255,.02);border-color:rgba(120,180,255,.1)}
+#app.dark .dcell-st.ok{background:rgba(13,156,95,.18);color:#4ade9a}
+#app.dark .dcell-st.sk,#app.dark .dcell-st.no{background:rgba(255,255,255,.06);color:#8ba0c0}
+#app.dark .dskip-btn{border-color:rgba(120,180,255,.2);color:#8ba0c0}
+#app.dark .dskip-btn:hover:not(:disabled){background:rgba(255,255,255,.06);color:#e6eefc}
+#app.dark .dskip-box{background:rgba(255,255,255,.05);border-left-color:#5f728f}
+#app.dark .dskip-h{color:#8ba0c0}
+#app.dark .dskip-r{color:#cdd8ec}
+#app.dark .dskip-m{color:#7085a3}
+#app.dark .dskip-undo{border-color:rgba(120,180,255,.2);color:#cdd8ec;background:transparent}
+#app.dark .dskip-edit .erp-inp{color:#e6eefc}
 </style>
 </head>
 <body>
@@ -941,7 +956,7 @@ table.erp tbody tr:hover{background:#fafcff}
 <script>
 // ===== 앱 버전 & 자동 업데이트 =====
 // 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
-const APP_VERSION='20260720-101223';
+const APP_VERSION='20260721-003430';
 // 편집 중(모달 열림)인지 판단
 function _isEditing(){
   const m=document.getElementById('modal');
