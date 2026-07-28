@@ -763,6 +763,8 @@ table.erp tbody tr:hover{background:#fafcff}
 #app.dark .dskip-m{color:#7085a3}
 #app.dark .dskip-undo{border-color:rgba(120,180,255,.2);color:#cdd8ec;background:transparent}
 #app.dark .dskip-edit .erp-inp{color:#e6eefc}
+.sn-assignee{font-size:9.5px;font-weight:600;color:#8fa3c4;margin-top:1px;display:flex;align-items:center;gap:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sn-assignee::before{content:'';width:5px;height:5px;border-radius:50%;background:#5a92e8;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -956,7 +958,7 @@ table.erp tbody tr:hover{background:#fafcff}
 <script>
 // ===== 앱 버전 & 자동 업데이트 =====
 // 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
-const APP_VERSION='20260728-083318';
+const APP_VERSION='20260728-094743';
 // 편집 중(모달 열림)인지 판단
 function _isEditing(){
   const m=document.getElementById('modal');
@@ -1225,7 +1227,7 @@ async function callBackendPost(params){
 
 // ===== 조직도 =====
 // 우리 단계 부서 → 실제 다우 부서명 매핑 (백엔드 orgtree의 dept명과 맞춤)
-const DEPT_MAP={"영업":["영업 GR"],"생산관리":["생산관리"],"품질":["품질"],"물류":["물류"],"설계":["설계1","설계2","설계 GR"],"구매":["구매"]};
+const DEPT_MAP={"영업":["영업 GR"],"생산관리":["생산관리"],"품질":["품질","SQM"],"물류":["물류","SQM"],"설계":["설계1","설계2","설계 GR"],"구매":["구매"]};
 let orgTreeCache=null;  // 백엔드에서 받은 조직도 [{dept,count,members:[{name,rank,empNo}]}]
 let orgTreeAt=0;        // 마지막 성공 조회 시각(ms)
 
@@ -1764,7 +1766,7 @@ function renderSidebar(){
     const deptBadges=deps.map(dp=>`<span class="sn-dept ${deptClass(dp)}">${dp}</span>`).join('');
     return `<div class="snode ${selectedStep===s.id?'on':''} ${locked?'lock':''} ${skipped?'skip':''} ${isParallel(s.id)?'par':''}" ${(locked||skipped)?(skipped&&isAdmin?`onclick="selStep(${s.id})"`:''):`onclick="selStep(${s.id})"`}>
       <div class="sn-st ${s.status}">${s.status==='done'?IC.check:s.status==='active'?pad(s.id):skipped?'—':''}</div>
-      <div class="sn-body"><div class="sn-num">STEP ${pad(s.id)}${skipped?' · 건너뜀':''}</div><div class="sn-name">${s.name}</div></div>
+      <div class="sn-body"><div class="sn-num">STEP ${pad(s.id)}${skipped?' · 건너뜀':''}</div><div class="sn-name">${s.name}</div>${(()=>{const a=p.stepAssign&&p.stepAssign[s.id];if(a&&a.type==='persons'&&a.persons&&a.persons.length)return `<div class="sn-assignee">${a.persons.map(x=>x.name).join(', ')}</div>`;return '';})()}</div>
       <span class="sn-dept-wrap">${deptBadges}</span>
     </div>`;
   }).join('');
@@ -2707,9 +2709,11 @@ function completeStep(sid){
 
 // 단계 완료 알림 발송 (지정된 담당에게)
 async function sendStepNotification(p,doneStep,nextStep,assign){
+  // 담당 표시 텍스트: 개인 지정이면 이름(들), 부서 지정이면 부서 전체
+  const assignNames=(assign&&assign.type==='persons'&&assign.persons&&assign.persons.length)?assign.persons.map(x=>x.name).join(', '):'';
   const title=`🔴 [확인요청] ${nextStep.dept} → ${nextStep.name} 대기 (${p.po})`;
-  const push=`[해외물류] ${doneStep.name} 완료 → ${nextStep.dept} ${nextStep.name} 차례입니다. (처리: ${userLabel(currentUser)})`;
-  const mailHtml=buildMailHtml(p,doneStep,nextStep);
+  const push=`[해외물류] ${doneStep.name} 완료 → ${nextStep.dept} ${nextStep.name} 차례입니다.${assignNames?` (담당: ${assignNames})`:''} (처리: ${userLabel(currentUser)})`;
+  const mailHtml=buildMailHtml(p,doneStep,nextStep,assign);
   // 받는 사람: 부서 전체면 부서명, 개인이면 이름
   let toNames=[], toDept='';
   if(assign){
@@ -2729,7 +2733,9 @@ async function sendStepNotification(p,doneStep,nextStep,assign){
 }
 
 // 알림 메일 HTML (물류 시스템 톤)
-function buildMailHtml(p,doneStep,nextStep){
+function buildMailHtml(p,doneStep,nextStep,assign){
+  const assignNames=(assign&&assign.type==='persons'&&assign.persons&&assign.persons.length)?assign.persons.map(x=>x.name).join(', '):'';
+  const assignLabelTxt=assignNames?`${assignNames} (${nextStep.dept})`:`${nextStep.dept} 부서 전체`;
   // 이메일 전용 구조: 600px 중앙정렬 컨테이너 + table 레이아웃 + 인라인 스타일
   // 정보 행은 라벨(위)·값(아래)을 한 셀에 쌓아 좁은 화면에서도 안 깨지게
   const row=(l,v)=>`<tr><td style="padding:12px 0;border-bottom:1px solid #eef1f5;">`
@@ -2748,7 +2754,7 @@ function buildMailHtml(p,doneStep,nextStep){
   // 본문
   +'<tr><td style="padding:26px 28px;">'
   +'<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:#fdecea;color:#d6443a;font-size:14px;font-weight:800;padding:8px 18px;border-radius:20px;">🔴 확인 요청</td></tr></table>'
-  +`<div style="font-size:21px;font-weight:800;color:#1a2233;margin:18px 0 6px;line-height:1.3;">${nextStep.dept}에서<br>처리할 차례입니다</div>`
+  +`<div style="font-size:21px;font-weight:800;color:#1a2233;margin:18px 0 6px;line-height:1.3;">${assignNames?assignNames+' 님이':nextStep.dept+'에서'}<br>처리할 차례입니다</div>`
   +'<div style="font-size:14px;color:#6b817c;margin-bottom:20px;line-height:1.5;">이전 단계가 완료되어 다음 단계 처리가 필요합니다.</div>'
   // 정보 테이블
   +'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eef1f5;">'
@@ -2757,6 +2763,7 @@ function buildMailHtml(p,doneStep,nextStep){
   +row('완료 단계',`STEP ${pad(doneStep.id)} ${doneStep.name}`)
   +row('처리자',userLabel(currentUser)+' ('+doneStep.dept+')')
   +row('다음 단계',`<span style="color:#2563c9;font-weight:800;">STEP ${pad(nextStep.id)} ${nextStep.name} — ${nextStep.dept}</span>`)
+  +row('담당',assignLabelTxt)
   +row('납기일',p.due)
   +'</table>'
   // 버튼
