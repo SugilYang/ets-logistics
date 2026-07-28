@@ -956,7 +956,7 @@ table.erp tbody tr:hover{background:#fafcff}
 <script>
 // ===== 앱 버전 & 자동 업데이트 =====
 // 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
-const APP_VERSION='20260721-003430';
+const APP_VERSION='20260728-081627';
 // 편집 중(모달 열림)인지 판단
 function _isEditing(){
   const m=document.getElementById('modal');
@@ -1507,6 +1507,39 @@ function migrateProject(p){
   });
   return p;
 }
+// 서버 연결 실패 안내 화면 (데모 대신)
+function showConnError(){
+  let ov=document.getElementById('connErrOv');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='connErrOv';
+    ov.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(15,27,48,.92);display:flex;align-items:center;justify-content:center;padding:24px';
+    ov.innerHTML=`<div style="background:#182742;border:1px solid rgba(127,180,255,.2);border-radius:15px;padding:30px 28px;max-width:360px;width:100%;text-align:center;color:#dfe8f7">
+      <div style="font-size:38px;margin-bottom:10px">⚠️</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:8px">서버에 연결할 수 없습니다</div>
+      <div style="font-size:12.5px;color:#94a6c8;line-height:1.7;margin-bottom:18px">데이터 서버(구글) 접속에 실패했습니다.<br>사내망 보안 설정 또는 네트워크 상태를 확인해주세요.<br><b style="color:#dfe8f7">표시된 데이터가 없는 것은 오류 때문이며,<br>실제 프로젝트가 삭제된 것이 아닙니다.</b></div>
+      <button onclick="retryConn()" style="width:100%;padding:12px;background:#2f6bd8;border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">다시 시도</button>
+    </div>`;
+    document.body.appendChild(ov);
+  }
+  ov.style.display='flex';
+}
+async function retryConn(){
+  const ov=document.getElementById('connErrOv');
+  const btn=ov?ov.querySelector('button'):null;
+  if(btn){btn.disabled=true;btn.textContent='연결 중...';}
+  const cloud=await loadProjectsFromSheet();
+  if(btn){btn.disabled=false;btn.textContent='다시 시도';}
+  if(cloud){
+    if(ov)ov.style.display='none';
+    projects=cloud.map(migrateProject);
+    seq=projects.length?Math.max(...projects.map(p=>p.id||0))+1:1;
+    try{switchTab('dashboard');}catch(e){}
+    toast('서버 연결 성공 — 데이터를 불러왔습니다');
+  }else{
+    toast('여전히 연결할 수 없습니다. 네트워크를 확인해주세요');
+  }
+}
 async function loadDataIntoApp(){
   const cloud=await loadProjectsFromSheet();
   if(cloud&&cloud.length>0){
@@ -1526,8 +1559,9 @@ async function loadDataIntoApp(){
       projects=[];seq=1; // 이미 데모 넣었다가 지운 상태 → 빈 목록 유지
     }
   }else{
-    // 시트 연결 실패(외부망 차단 등) → 폴백 샘플 (로컬 테스트용, 저장 안 함)
-    if(projects.length===0)seedSampleData();
+    // 시트 연결 실패(외부망 차단 등) → 데모를 보여주지 않고 오류 화면 표시
+    projects=[];seq=1;
+    showConnError();
   }
   // 접속 후 조직도를 백그라운드로 미리 불러와 담당 대조(퇴사/부서이동) 배지 표시
   loadOrgTree().then(tree=>{
@@ -2258,13 +2292,18 @@ function deleteProjectFromSheet(id){
 }
 // 시트에서 전체 프로젝트 불러오기
 async function loadProjectsFromSheet(){
-  try{
-    const r=await callBackend({action:'loadProjects'});
-    if(r&&r.ok&&Array.isArray(r.projects)){
-      cloudEnabled=true;
-      return r.projects;
-    }
-  }catch(e){cloudEnabled=false;}
+  // 일시적 실패 흡수를 위해 최대 3회 재시도
+  for(let attempt=1;attempt<=3;attempt++){
+    try{
+      const r=await callBackend({action:'loadProjects'});
+      if(r&&r.ok&&Array.isArray(r.projects)){
+        cloudEnabled=true;
+        return r.projects;
+      }
+    }catch(e){}
+    if(attempt<3)await new Promise(res=>setTimeout(res,1200));
+  }
+  cloudEnabled=false;
   return null;
 }
 // 규칙: 관리자=항상 / 부서전체 지정=그 부서원 / 개인 지정=그 사람만
