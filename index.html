@@ -956,7 +956,7 @@ table.erp tbody tr:hover{background:#fafcff}
 <script>
 // ===== 앱 버전 & 자동 업데이트 =====
 // 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
-const APP_VERSION='20260728-081627';
+const APP_VERSION='20260728-083318';
 // 편집 중(모달 열림)인지 판단
 function _isEditing(){
   const m=document.getElementById('modal');
@@ -2496,7 +2496,7 @@ function confirmSkipDept(sid,fi,dp){
   if(!canSkipDept(s,f,dp)){toast('다른 부서가 이미 스킵했습니다. 최소 한 부서는 작성해야 합니다');return;}
   delete f.dvals[dp];
   f.dskip[dp]={reason:reason,by:userLabel(currentUser),date:now()};
-  if(f._skipOpen)delete f._skipOpen[dp];
+  if(f._skipOpen)f._skipOpen={}; // 스킵 확정 → 이 필드의 모든 열린 스킵 입력창 닫기(다른 부서 포함)
   p.history.unshift({stage:`STEP ${pad(s.id)} "${f.item}" ${dp} 스킵`,meta:`처리 ${userLabel(currentUser)} · 사유: ${reason}`,time:today(),done:false});
   syncMultiField(s,f);
   recalcStepStatus(p,sid);
@@ -2543,7 +2543,7 @@ function renderMultiField(s,f,fi,canEdit){
     if(skipped){
       const k=f.dskip[dp];
       skipArea=`<div class="dskip-box"><div class="dskip-h">건너뜀</div><div class="dskip-r">${k.reason}</div><div class="dskip-m">${k.by||''} ${k.date||''}${(canEdit&&(mine||isAdmin))?` <button class="dskip-undo" onclick="unskipDept(${s.id},${fi},'${dp}')">해제</button>`:''}</div></div>`;
-    }else if(f._skipOpen&&f._skipOpen[dp]){
+    }else if(f._skipOpen&&f._skipOpen[dp]&&canSkipDept(s,f,dp)){
       skipArea=`<div class="dskip-edit"><input id="skr_${s.id}_${fi}_${dp}" class="erp-inp" placeholder="스킵 사유를 입력하세요 (필수)"><div style="display:flex;gap:5px;margin-top:5px"><button class="btn btn-pri" style="font-size:11px;padding:4px 11px" onclick="confirmSkipDept(${s.id},${fi},'${dp}')">스킵 확정</button><button class="btn btn-gho" style="font-size:11px;padding:4px 11px" onclick="cancelSkipDept(${s.id},${fi},'${dp}')">취소</button></div></div>`;
     }else if(canEdit&&mine&&!filled){
       const allow=canSkipDept(s,f,dp);
