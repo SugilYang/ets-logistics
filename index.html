@@ -858,7 +858,7 @@ table.erp tbody tr:hover{background:#fafcff}
       <button class="tb-admin" id="tbAdmin" onclick="toggleAdmin()">관리자 모드</button>
       <button class="tb-unbind" id="tbUnbind" onclick="unbindDevice()" style="display:none">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 12l2 2 4-4" stroke="none"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
-        <span>기기 고정 해제</span>
+        <span>로그아웃</span>
       </button>
       <button class="tb-exit" id="tbExit" onclick="exitViewMode()" style="display:none">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -958,7 +958,7 @@ table.erp tbody tr:hover{background:#fafcff}
 <script>
 // ===== 앱 버전 & 자동 업데이트 =====
 // 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
-const APP_VERSION='20260728-094743';
+const APP_VERSION='20260729-041523';
 // 편집 중(모달 열림)인지 판단
 function _isEditing(){
   const m=document.getElementById('modal');
@@ -1438,7 +1438,7 @@ async function doDeviceAuth(){
     return;
   }
 
-  // 시트에 기기 등록 (PC 1 + 모바일 1 제한, 초과 시 거부)
+  // 시트에 기기 등록 (대수 제한 없음 — 인증 이력 기록용)
   let bindResult=null;
   try{
     bindResult=await callBackend({action:'deviceBind',deviceId:getDeviceId(),devType:getDeviceType(),name:u.name,rank:u.rank,dept:u.dept,empNo:u.empNo});
@@ -1464,6 +1464,14 @@ function enterApp(u,firstBind){
   app.classList.add('show');app.classList.add('dark');
   try{
     document.getElementById('tbUser').innerHTML=`<span class="dot"></span><b>${userLabel(u)}</b><span class="tb-dept"> · ${u.dept}${isSuperUser(u)?' · 개발자':''}</span>`;
+    // 로그인 상태면 로그아웃 버튼 항상 표시
+    if(!isViewMode)document.getElementById('tbUnbind').style.display='flex';
+    // 슈퍼유저(양수길)는 자동으로 관리자 모드
+    if(isSuperUser(u)&&!isAdmin){
+      isAdmin=true;
+      const b=document.getElementById('tbAdmin');b.classList.add('on');b.textContent='관리자 ON';
+      const td=document.getElementById('tabDevices');if(td)td.style.display='flex';
+    }
   }catch(e){}
   showTransition('해외물류 관리시스템', firstBind?`${u.name} ${u.rank}님, 환영합니다`:`${u.name} ${u.rank}님으로 자동 로그인`,async()=>{
     try{ await loadDataIntoApp(); }catch(e){ if(projects.length===0)seedSampleData(); }
@@ -1631,10 +1639,11 @@ function viewGuard(){
   return false;
 }
 
-// 기기 고정 해제 (관리자 전용)
-function unbindDevice(){
-  if(!isAdmin){toast('관리자만 기기 고정을 해제할 수 있습니다');return;}
-  if(!confirm(`이 기기의 고정(${userLabel(currentUser)})을 해제하시겠습니까?\n해제 후 다시 본인 인증이 필요합니다.`))return;
+// 로그아웃 — 이 기기의 인증을 해제하고 로그인 화면으로 (다른 직원 로그인 가능)
+async function unbindDevice(){
+  if(!currentUser){return;}
+  if(!confirm(`로그아웃하시겠습니까?\n이 기기의 인증(${userLabel(currentUser)})이 해제되며,\n다른 직원이 이 기기에서 로그인할 수 있습니다.`))return;
+  try{ await callBackend({action:'deviceUnbind',deviceId:getDeviceId()}); }catch(e){}
   clearDeviceUser();
   isAdmin=false;currentUser=null;projects=[];activeProjectId=null;
   document.getElementById('app').classList.remove('show');
@@ -1643,6 +1652,7 @@ function unbindDevice(){
   document.getElementById('lgMsg').className='lgmsg';
   document.getElementById('tbAdmin').classList.remove('on');document.getElementById('tbAdmin').textContent='관리자 모드';
   document.getElementById('tbUnbind').style.display='none';
+  const td=document.getElementById('tabDevices');if(td)td.style.display='none';
 }
 
 function toggleAdmin(){
@@ -1652,7 +1662,7 @@ function toggleAdmin(){
   const tabDev=document.getElementById('tabDevices');
   if(!isAdmin){
     const pw=prompt('관리자 비밀번호를 입력하세요');
-    if(pw==='1111'){isAdmin=true;b.classList.add('on');b.textContent='관리자 ON';unbind.style.display='flex';if(tabDev)tabDev.style.display='flex';toast('관리자 모드 활성화 — 수정/삭제 및 기기 관리 가능');refresh();}
+    if(pw==='4028'){isAdmin=true;b.classList.add('on');b.textContent='관리자 ON';unbind.style.display='flex';if(tabDev)tabDev.style.display='flex';toast('관리자 모드 활성화 — 수정/삭제 및 기기 관리 가능');refresh();}
     else if(pw!==null)toast('비밀번호가 올바르지 않습니다');
   }else{isAdmin=false;b.classList.remove('on');b.textContent='관리자 모드';unbind.style.display='none';if(tabDev)tabDev.style.display='none';if(currentTab==='devices')switchTab('list');toast('관리자 모드 해제');refresh();}
 }
