@@ -958,7 +958,7 @@ table.erp tbody tr:hover{background:#fafcff}
 <script>
 // ===== 앱 버전 & 자동 업데이트 =====
 // 배포할 때마다 이 값이 자동으로 바뀝니다 (빌드 시 타임스탬프)
-const APP_VERSION='20260729-041523';
+const APP_VERSION='20260730-020253';
 // 편집 중(모달 열림)인지 판단
 function _isEditing(){
   const m=document.getElementById('modal');
@@ -1474,7 +1474,7 @@ function enterApp(u,firstBind){
     }
   }catch(e){}
   showTransition('해외물류 관리시스템', firstBind?`${u.name} ${u.rank}님, 환영합니다`:`${u.name} ${u.rank}님으로 자동 로그인`,async()=>{
-    try{ await loadDataIntoApp(); }catch(e){ if(projects.length===0)seedSampleData(); }
+    try{ await loadDataIntoApp(); }catch(e){ projects=[];seq=1;showConnError(); }
     try{ if(!openDeepLink())switchTab('dashboard'); }catch(e){ try{switchTab('dashboard');}catch(_){} }
   });
 }
@@ -1556,18 +1556,8 @@ async function loadDataIntoApp(){
     projects=cloud.map(migrateProject);
     seq=Math.max(...projects.map(p=>p.id||0))+1;
   }else if(cloud&&cloud.length===0){
-    // 시트 연결됨 + 비어있음 → 데모를 아직 안 넣었으면 1회 데모 시드+저장
-    let seeded=false;
-    try{const r=await callBackend({action:'getSeedFlag'});seeded=r&&r.seeded;}catch(e){}
-    if(!seeded){
-      seedSampleData();
-      if(!isViewMode){
-        projects.forEach(p=>saveProjectToSheet(p));
-        try{await callBackend({action:'setSeedFlag'});}catch(e){}
-      }
-    }else{
-      projects=[];seq=1; // 이미 데모 넣었다가 지운 상태 → 빈 목록 유지
-    }
+    // 시트 연결됨 + 비어있음 → 빈 목록 그대로 (데모 생성 절대 안 함)
+    projects=[];seq=1;
   }else{
     // 시트 연결 실패(외부망 차단 등) → 데모를 보여주지 않고 오류 화면 표시
     projects=[];seq=1;
@@ -1618,7 +1608,7 @@ function enterViewMode(){
     document.getElementById('tbExit').style.display='flex';
   }catch(e){}
   showTransition('해외물류 관리시스템','조회 전용 모드로 들어갑니다',async()=>{
-    try{ await loadDataIntoApp(); }catch(e){ if(projects.length===0)seedSampleData(); }
+    try{ await loadDataIntoApp(); }catch(e){ projects=[];seq=1;showConnError(); }
     try{ switchTab('dashboard'); }catch(e){ try{switchTab('dashboard');}catch(_){} }
   });
 }
@@ -3205,54 +3195,8 @@ function autofillStep01(p,info){
 }
 
 // ===== 시연용 샘플 데이터 4건 =====
-function seedSampleData(){
-  const mk=(meta,advanceTo,freight,compDate)=>{
-    const p=buildProject(meta);
-    autofillStep01(p,{customer:meta.customer,country:meta.country,due:meta.due.replace(/\./g,'-')});
-    for(let i=0;i<advanceTo;i++){
-      const s=p.steps[i];
-      s.fields.forEach(f=>{
-        f.done=true;f.by=meta.sampleBy||'정유진 과장';f.date=(compDate||meta.created)+' 09:00';
-        if(f.type==='drop'&&!f.val)f.val=f.opts[0];
-        if(f.type==='text'&&!f.val)f.val='확인';
-        if(f.type==='date'&&!f.val)f.val='2026-07-01';
-        if(f.item==='최종 운송비'&&freight)f.val=String(freight);
-        if(f.item==='운송 상태')f.val='배송 완료';
-        // 다부서 항목은 부서 칸에도 채워 넣음 (첫 부서 입력 / 두 번째 부서 입력)
-        if(isMultiField(s,f)){
-          fieldDS(f);
-          fieldDepts(s,f).forEach(dp=>{f.dvals[dp]={val:f.val||'',done:true,by:f.by,date:f.date};});
-        }
-      });
-      s.status='done';
-      // 완료 프로젝트는 완료월 기록 (월별 추이용)
-      const htime=(i===advanceTo-1&&advanceTo>=15&&compDate)?compDate:meta.created;
-      p.history.unshift({stage:`STEP ${pad(s.id)} ${s.name} 완료`,meta:`담당 ${meta.sampleBy||'정유진 과장'} · ${s.dept}`,time:htime,done:true});
-      if(p.steps[i+1]){
-        if(isParallel(p.steps[i+1].id))p.steps.forEach(x=>{if(isParallel(x.id)&&x.status!=='done')x.status='active';});
-        else p.steps[i+1].status='active';
-      }
-    }
-    return p;
-  };
-  projects=[
-    // 진행중 (여러 단계에 분포)
-    mk({name:'LG에너지솔루션 셀 부품',po:'PO-2026-0612',customer:'LG에너지솔루션',country:'미국',due:'2026.07.05',author:'정유진 과장',created:'2026.06.20',sampleBy:'양수길 대리'},8),
-    mk({name:'폴란드 공장 자재 발송',po:'PO-2026-0589',customer:'LG Energy Wroclaw',country:'폴란드',due:'2026.07.10',author:'정유진 과장',created:'2026.06.24',sampleBy:'이수현 사원'},4),
-    mk({name:'캐나다 샘플 발송',po:'PO-2026-0701',customer:'Stellantis Windsor',country:'캐나다',due:'2026.08.15',author:'정유진 과장',created:'2026.06.28',sampleBy:'박태양 대리'},1),
-    mk({name:'베트남 신규 부품',po:'PO-2026-0733',customer:'VinFast',country:'베트남',due:'2026.07.03',author:'정유진 과장',created:'2026.06.22',sampleBy:'이수현 사원'},11),
-    mk({name:'멕시코 배터리팩',po:'PO-2026-0740',customer:'BMW San Luis',country:'멕시코',due:'2026.07.18',author:'정유진 과장',created:'2026.06.27',sampleBy:'박태양 대리'},6),
-    // 완료 (여러 달, 운송비 있음 → 월별 추이/운송비)
-    mk({name:'인니 신규라인 부품',po:'PO-2026-0521',customer:'HLI Green Power',country:'인도네시아',due:'2026.06.20',author:'정유진 과장',created:'2026.05.28',sampleBy:'김민준 차장'},15,8200,'2026.06.18'),
-    mk({name:'미국 2차 셀 모듈',po:'PO-2026-0498',customer:'Ultium Cells',country:'미국',due:'2026.06.15',author:'정유진 과장',created:'2026.05.20',sampleBy:'양수길 대리'},15,11500,'2026.06.12'),
-    mk({name:'헝가리 분리막 발송',po:'PO-2026-0455',customer:'SK On Hungary',country:'헝가리',due:'2026.05.30',author:'정유진 과장',created:'2026.05.05',sampleBy:'김민준 차장'},15,6700,'2026.05.28'),
-    mk({name:'중국 전극 소재',po:'PO-2026-0402',customer:'CATL Ningde',country:'중국',due:'2026.05.15',author:'정유진 과장',created:'2026.04.22',sampleBy:'이수현 사원'},15,5400,'2026.05.12'),
-    mk({name:'독일 모듈 케이스',po:'PO-2026-0388',customer:'BMW Group',country:'독일',due:'2026.04.28',author:'정유진 과장',created:'2026.04.02',sampleBy:'박태양 대리'},15,9300,'2026.04.25'),
-  ];
-  seq=projects.length+1;
-  projects.forEach((p,i)=>p.id=i+1);
-  activeProjectId=null;
-}
+// (데모 시드 함수 제거됨 — 데모 프로젝트는 어떤 경우에도 생성되지 않음)
+
 
 // ===== 페이지 로드: 기기 고정 사용자 자동 진입 =====
 window.addEventListener('DOMContentLoaded',async()=>{
